@@ -5,287 +5,525 @@ const PROXY_BASE = "http://localhost:3001";
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const MATCHUP_TYPES = ["Good Matchup", "Even Matchup", "Tough Matchup"];
 const MATCHUP_COLOR = {
-  "Good Matchup":  "#6effa8",
-  "Even Matchup":  "#ffd97b",
+  "Good Matchup": "#6effa8",
+  "Even Matchup": "#ffd97b",
   "Tough Matchup": "#ff7b7b",
 };
 const DOMAIN_COLORS = {
-  Fury:      { bg:"#3a0000", border:"#c0392b", text:"#ff8888" },
-  Calm:      { bg:"#003a10", border:"#27ae60", text:"#7affa8" },
-  Mind:      { bg:"#00103a", border:"#2980b9", text:"#7ab8ff" },
-  Body:      { bg:"#2a1800", border:"#e67e22", text:"#ffb060" },
-  Chaos:     { bg:"#1a003a", border:"#8e44ad", text:"#cc88ff" },
-  Order:     { bg:"#2a2a00", border:"#f1c40f", text:"#ffe060" },
-  Colorless: { bg:"#1a1a1a", border:"#888",    text:"#ccc"    },
+  Fury: { bg: "#3a0000", border: "#c0392b", text: "#ff8888" },
+  Calm: { bg: "#003a10", border: "#27ae60", text: "#7affa8" },
+  Mind: { bg: "#00103a", border: "#2980b9", text: "#7ab8ff" },
+  Body: { bg: "#2a1800", border: "#e67e22", text: "#ffb060" },
+  Chaos: { bg: "#1a003a", border: "#8e44ad", text: "#cc88ff" },
+  Order: { bg: "#2a2a00", border: "#f1c40f", text: "#ffe060" },
+  Colorless: { bg: "#1a1a1a", border: "#888", text: "#ccc" },
 };
 
 // ── THEME SYSTEM ──────────────────────────────────────────────────────────
-// Raw hex color values per domain for blending
 const DOMAIN_RAW = {
-  Fury:      { r:192, g:57,  b:43,  dark:{ r:58,  g:0,  b:0  } },
-  Calm:      { r:39,  g:174, b:96,  dark:{ r:0,   g:58, b:16 } },
-  Mind:      { r:41,  g:128, b:185, dark:{ r:0,   g:16, b:58 } },
-  Body:      { r:230, g:126, b:34,  dark:{ r:42,  g:24, b:0  } },
-  Chaos:     { r:142, g:68,  b:173, dark:{ r:26,  g:0,  b:58 } },
-  Order:     { r:241, g:196, b:15,  dark:{ r:42,  g:42, b:0  } },
-  Colorless: { r:136, g:136, b:136, dark:{ r:26,  g:26, b:26 } },
+  Fury: { r: 192, g: 57, b: 43, dark: { r: 58, g: 0, b: 0 } },
+  Calm: { r: 39, g: 174, b: 96, dark: { r: 0, g: 58, b: 16 } },
+  Mind: { r: 41, g: 128, b: 185, dark: { r: 0, g: 16, b: 58 } },
+  Body: { r: 230, g: 126, b: 34, dark: { r: 42, g: 24, b: 0 } },
+  Chaos: { r: 142, g: 68, b: 173, dark: { r: 26, g: 0, b: 58 } },
+  Order: { r: 241, g: 196, b: 15, dark: { r: 42, g: 42, b: 0 } },
+  Colorless: { r: 136, g: 136, b: 136, dark: { r: 26, g: 26, b: 26 } },
 };
 
-// Blend two hex values weighted by t (0..1)
-function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
-
-// Given the runes array [{count, name}], derive a full UI theme
 function deriveTheme(runes) {
   if (!runes || runes.length === 0) {
-    // Default: dark red
     return {
-      primary:   "#c0392b",
+      primary: "#c0392b",
       secondary: "#8b0000",
-      accent:    "#ff8060",
-      bg:        "#070000",
-      bgCard:    "#0e0202",
-      bgPanel:   "rgba(14,3,3,0.88)",
-      border:    "rgba(192,57,43,0.28)",
+      accent: "#ff8060",
+      bg: "#070000",
+      bgCard: "#0e0202",
+      bgPanel: "rgba(14,3,3,0.88)",
+      border: "rgba(192,57,43,0.28)",
       borderBright: "rgba(255,100,60,0.45)",
-      glow:      "rgba(180,30,0,0.12)",
-      gradient:  "linear-gradient(135deg,#8b0000,#c0392b)",
-      topbar:    "linear-gradient(90deg,#070000,#120303,#070000)",
+      glow: "rgba(180,30,0,0.12)",
+      gradient: "linear-gradient(135deg,#8b0000,#c0392b)",
+      topbar: "linear-gradient(90deg,#070000,#120303,#070000)",
       scrollThumb: "#280000",
     };
   }
 
-  // Total rune count and per-domain weights
-  const total = runes.reduce((s,r) => s + r.count, 0);
-  const domains = runes.map(r => ({
-    domain: r.name.replace(/\s*rune\s*/i,"").trim(),
+  const total = runes.reduce((s, r) => s + r.count, 0);
+  const domains = runes.map((r) => ({
+    domain: r.name.replace(/\s*rune\s*/i, "").trim(),
     weight: r.count / total,
   }));
 
-  // Blend accent color (primary pip color)
-  let pr=0, pg=0, pb=0, dr=0, dg=0, db=0;
+  let pr = 0,
+    pg = 0,
+    pb = 0,
+    dr = 0,
+    dg = 0,
+    db = 0;
   for (const { domain, weight } of domains) {
     const raw = DOMAIN_RAW[domain] || DOMAIN_RAW.Colorless;
-    pr += raw.r * weight; pg += raw.g * weight; pb += raw.b * weight;
-    dr += raw.dark.r * weight; dg += raw.dark.g * weight; db += raw.dark.b * weight;
+    pr += raw.r * weight;
+    pg += raw.g * weight;
+    pb += raw.b * weight;
+    dr += raw.dark.r * weight;
+    dg += raw.dark.g * weight;
+    db += raw.dark.b * weight;
   }
-  const toHex = (r,g,b) => `#${[r,g,b].map(v=>Math.round(v).toString(16).padStart(2,"0")).join("")}`;
-  const primary   = toHex(pr, pg, pb);
-  const darkBg    = toHex(Math.max(4,dr*0.35), Math.max(0,dg*0.35), Math.max(0,db*0.35));
-  const midBg     = toHex(Math.max(7,dr*0.55), Math.max(0,dg*0.55), Math.max(0,db*0.55));
-  const panelBg   = `rgba(${Math.round(dr*0.6)},${Math.round(dg*0.6)},${Math.round(db*0.6)},0.88)`;
-  const border    = `rgba(${Math.round(pr)},${Math.round(pg)},${Math.round(pb)},0.28)`;
-  const borderBrt = `rgba(${Math.round(Math.min(255,pr*1.3))},${Math.round(Math.min(255,pg*1.3))},${Math.round(Math.min(255,pb*1.3))},0.5)`;
-  const glowRgba  = `rgba(${Math.round(pr*0.7)},${Math.round(pg*0.7)},${Math.round(pb*0.7)},0.13)`;
-  const accent    = toHex(Math.min(255,pr*1.4), Math.min(255,pg*1.4), Math.min(255,pb*1.4));
 
-  // Gradient: darken → lighten of primary
-  const g1 = toHex(Math.max(0,pr*0.45), Math.max(0,pg*0.45), Math.max(0,pb*0.45));
-  const g2 = primary;
-  const topL = toHex(Math.max(0,pr*0.08), Math.max(0,pg*0.08), Math.max(0,pb*0.08));
-  const topM = toHex(Math.max(0,pr*0.14), Math.max(0,pg*0.14), Math.max(0,pb*0.14));
+  const toHex = (r, g, b) =>
+    `#${[r, g, b]
+      .map((v) => Math.round(v).toString(16).padStart(2, "0"))
+      .join("")}`;
+
+  const primary = toHex(pr, pg, pb);
+  const darkBg = toHex(Math.max(4, dr * 0.35), Math.max(0, dg * 0.35), Math.max(0, db * 0.35));
+  const midBg = toHex(Math.max(7, dr * 0.55), Math.max(0, dg * 0.55), Math.max(0, db * 0.55));
+  const panelBg = `rgba(${Math.round(dr * 0.6)},${Math.round(dg * 0.6)},${Math.round(db * 0.6)},0.88)`;
+  const border = `rgba(${Math.round(pr)},${Math.round(pg)},${Math.round(pb)},0.28)`;
+  const borderBrt = `rgba(${Math.round(Math.min(255, pr * 1.3))},${Math.round(
+    Math.min(255, pg * 1.3)
+  )},${Math.round(Math.min(255, pb * 1.3))},0.5)`;
+  const glowRgba = `rgba(${Math.round(pr * 0.7)},${Math.round(pg * 0.7)},${Math.round(pb * 0.7)},0.13)`;
+  const accent = toHex(Math.min(255, pr * 1.4), Math.min(255, pg * 1.4), Math.min(255, pb * 1.4));
+
+  const g1 = toHex(Math.max(0, pr * 0.45), Math.max(0, pg * 0.45), Math.max(0, pb * 0.45));
+  const topL = toHex(Math.max(0, pr * 0.08), Math.max(0, pg * 0.08), Math.max(0, pb * 0.08));
+  const topM = toHex(Math.max(0, pr * 0.14), Math.max(0, pg * 0.14), Math.max(0, pb * 0.14));
 
   return {
     primary,
-    secondary:    g1,
+    secondary: g1,
     accent,
-    bg:           darkBg,
-    bgCard:       midBg,
-    bgPanel:      panelBg,
+    bg: darkBg,
+    bgCard: midBg,
+    bgPanel: panelBg,
     border,
     borderBright: borderBrt,
-    glow:         glowRgba,
-    gradient:     `linear-gradient(135deg,${g1},${primary})`,
-    topbar:       `linear-gradient(90deg,${topL},${topM},${topL})`,
-    scrollThumb:  toHex(Math.max(0,dr*0.8), Math.max(0,dg*0.8), Math.max(0,db*0.8)),
+    glow: glowRgba,
+    gradient: `linear-gradient(135deg,${g1},${primary})`,
+    topbar: `linear-gradient(90deg,${topL},${topM},${topL})`,
+    scrollThumb: toHex(Math.max(0, dr * 0.8), Math.max(0, dg * 0.8), Math.max(0, db * 0.8)),
   };
 }
 
 // ── DECKLIST PARSER ────────────────────────────────────────────────────────
 function parseDecklist(text) {
-  const result = { legend:[], champion:[], mainDeck:[], battlefields:[], runes:[], sideboard:[] };
+  const result = { legend: [], champion: [], mainDeck: [], battlefields: [], runes: [], sideboard: [] };
   let section = null;
+
   const MAP = {
-    legend:"legend", champion:"champion",
-    maindeck:"mainDeck", "main deck":"mainDeck", main:"mainDeck",
-    battlefields:"battlefields", battlefield:"battlefields",
-    runes:"runes", rune:"runes",
-    sideboard:"sideboard", side:"sideboard", sidedeck:"sideboard",
+    legend: "legend",
+    champion: "champion",
+    maindeck: "mainDeck",
+    "main deck": "mainDeck",
+    main: "mainDeck",
+    battlefields: "battlefields",
+    battlefield: "battlefields",
+    runes: "runes",
+    rune: "runes",
+    sideboard: "sideboard",
+    side: "sideboard",
+    sidedeck: "sideboard",
   };
+
   for (const raw of text.split("\n")) {
     const line = raw.trim();
     if (!line) continue;
+
     const hdr = line.match(/^([A-Za-z\s]+):?\s*$/);
-    if (hdr) { const k = hdr[1].trim().toLowerCase(); if (MAP[k]) { section = MAP[k]; continue; } }
+    if (hdr) {
+      const k = hdr[1].trim().toLowerCase();
+      if (MAP[k]) {
+        section = MAP[k];
+        continue;
+      }
+    }
+
     if (!section) continue;
+
     const m = line.match(/^(\d+)\s+(.+)$/);
-    if (m) result[section].push({ count: parseInt(m[1]), name: m[2].trim() });
+    if (m) result[section].push({ count: parseInt(m[1], 10), name: m[2].trim() });
   }
-  result.legend[0].name = result.legend[0]?.name.split(",")[1].trim() || "";
+
   return result;
 }
-function expandCards(cards) { return cards.flatMap(c => Array(c.count).fill(c.name)); }
+
+function expandCards(cards) {
+  return cards.flatMap((c) => Array(c.count).fill(c.name));
+}
 
 // ── GLOBAL CARD STORE ──────────────────────────────────────────────────────
-let cardMap     = null;   // Map<lowerName, parsedCard>
-let legendsArr  = [];     // sorted Legend-type cards
+let cardMap = null; // Map<lookupKey, card[]>
+let legendsArr = [];
 let loadPromise = null;
+
+function addCardKey(map, key, card) {
+  if (!key) return;
+  const k = key.toLowerCase().trim();
+  if (!k) return;
+
+  const arr = map.get(k) || [];
+  if (!arr.some((c) => c.id === card.id)) arr.push(card);
+  map.set(k, arr);
+}
 
 async function loadCards() {
   if (cardMap) return;
   if (loadPromise) return loadPromise;
+
   loadPromise = fetch(`${PROXY_BASE}/api/cards`)
-    .then(r => r.json())
+    .then((r) => r.json())
     .then(({ cards = [] }) => {
       cardMap = new Map();
+
       for (const c of cards) {
-        for (const k of [
-          c.cleanName?.toLowerCase(),
-          c.name?.toLowerCase(),
-          c.name?.split(",")[0]?.trim()?.toLowerCase(),
-          c.cleanName?.replace(/[^a-z0-9]/gi,"").toLowerCase(),
-        ].filter(Boolean)) {
-          if (!cardMap.has(k)) cardMap.set(k, c);
-        }
+        const keys = [
+          c.cleanName,
+          c.name,
+          c.name?.split(",")[0]?.trim(),
+          c.cleanName?.split(",")[0]?.trim(),
+          c.name?.replace(/[^a-z0-9]/gi, ""),
+          c.cleanName?.replace(/[^a-z0-9]/gi, ""),
+          c.name?.split(",")[0]?.replace(/[^a-z0-9]/gi, ""),
+          c.cleanName?.split(",")[0]?.replace(/[^a-z0-9]/gi, ""),
+        ].filter(Boolean);
+
+        for (const key of keys) addCardKey(cardMap, key, c);
       }
-      // Filter legends: classification.type === "Legend"
+
       legendsArr = cards
-        .filter(c => c.type === "Legend")
-        .sort((a,b) => (a.cleanName||a.name).localeCompare(b.cleanName||b.name));
+        .filter((c) => c.type === "Legend")
+        .sort((a, b) => (a.cleanName || a.name).localeCompare(b.cleanName || b.name));
+
       console.log(`[cards] ${cards.length} total, ${legendsArr.length} legends`);
     })
-    .catch(err => { console.error("[loadCards]", err); cardMap = new Map(); });
+    .catch((err) => {
+      console.error("[loadCards]", err);
+      cardMap = new Map();
+    });
+
   return loadPromise;
 }
 
-function lookupCard(name) {
+function normalizeName(name) {
+  return name?.trim().toLowerCase() || "";
+}
+
+function dedupeCards(cards) {
+  return [...new Map(cards.map((c) => [c.id, c])).values()];
+}
+
+function lookupCard(name, wantedType = null) {
   if (!cardMap || !name) return null;
-  const lo = name.trim().toLowerCase();
-  if (cardMap.has(lo)) return cardMap.get(lo);
-  const first = lo.split(",")[0].trim();
-  if (cardMap.has(first)) return cardMap.get(first);
-  for (const [k,v] of cardMap) {
-    if (k.startsWith(first) && first.length > 3) return v;
+
+  const raw = normalizeName(name);
+  const first = raw.split(",")[0].trim();
+  const compact = raw.replace(/[^a-z0-9]/gi, "");
+  const compactFirst = first.replace(/[^a-z0-9]/gi, "");
+
+  let candidates = [];
+
+  for (const key of [raw, first, compact, compactFirst]) {
+    const arr = cardMap.get(key);
+    if (arr?.length) candidates.push(...arr);
   }
-  return null;
+
+  if (!candidates.length && first.length > 2) {
+    for (const [k, arr] of cardMap.entries()) {
+      if (k.startsWith(first) || k.startsWith(compactFirst)) candidates.push(...arr);
+    }
+  }
+
+  candidates = dedupeCards(candidates);
+
+  if (!candidates.length) return null;
+
+  if (wantedType) {
+    const exactType = candidates.find((c) => c.type === wantedType);
+    if (exactType) return exactType;
+  }
+
+  return candidates[0] || null;
 }
 
 function useCardStore() {
   const [ready, setReady] = useState(!!cardMap);
   const [error, setError] = useState(null);
+
   useEffect(() => {
-    if (cardMap) { setReady(true); return; }
-    loadCards().then(() => setReady(true)).catch(e => setError(String(e)));
+    if (cardMap) {
+      setReady(true);
+      return;
+    }
+    loadCards()
+      .then(() => setReady(true))
+      .catch((e) => setError(String(e)));
   }, []);
+
   return { ready, error, cardCount: cardMap?.size || 0, legendCount: legendsArr.length };
 }
 
 // ── CARD UI PRIMITIVES ─────────────────────────────────────────────────────
-function Thumb({ name, w=38, h=53, radius=4, border="1px solid rgba(255,120,60,0.3)" }) {
+function Thumb({
+  name,
+  wantedType = null,
+  w = 38,
+  h = 53,
+  radius = 4,
+  border = "1px solid rgba(255,120,60,0.3)",
+}) {
   const [fail, setFail] = useState(false);
-  const card = lookupCard(name);
+  const card = lookupCard(name, wantedType);
+
   return (
-    <div style={{ width:w, height:h, borderRadius:radius, overflow:"hidden", flexShrink:0,
-      border, background:"#120404", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      {card?.imageUrl && !fail
-        ? <img src={card.imageUrl} alt={name} onError={()=>setFail(true)}
-            style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top center" }} />
-        : <span style={{ fontSize:Math.max(7,w*0.28), color:"#ff6030", fontFamily:"'Cinzel',serif", fontWeight:900 }}>
-            {(name||"?").charAt(0).toUpperCase()}
-          </span>
-      }
+    <div
+      style={{
+        width: w,
+        height: h,
+        borderRadius: radius,
+        overflow: "hidden",
+        flexShrink: 0,
+        border,
+        background: "#120404",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {card?.imageUrl && !fail ? (
+        <img
+          src={card.imageUrl}
+          alt={name}
+          onError={() => setFail(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}
+        />
+      ) : (
+        <span
+          style={{
+            fontSize: Math.max(7, w * 0.28),
+            color: "#ff6030",
+            fontFamily: "'Cinzel',serif",
+            fontWeight: 900,
+          }}
+        >
+          {(name || "?").charAt(0).toUpperCase()}
+        </span>
+      )}
     </div>
   );
 }
 
-function FullCard({ name, w=120, h=168 }) {
+function FullCard({ name, wantedType = null, w = 120, h = 168 }) {
   const [fail, setFail] = useState(false);
-  const card = lookupCard(name);
+  const card = lookupCard(name, wantedType);
+
   return (
-    <div style={{ width:w, height:h, borderRadius:8, overflow:"hidden",
-      border:"2px solid rgba(255,160,60,0.45)", background:"#120404",
-      boxShadow:"0 8px 28px rgba(0,0,0,0.65)", flexShrink:0 }}>
-      {card?.imageUrl && !fail
-        ? <img src={card.imageUrl} alt={name} onError={()=>setFail(true)}
-            style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top center" }} />
-        : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:Math.round(w*0.25), color:"#ff6030", fontFamily:"'Cinzel',serif", fontWeight:900 }}>
-            {(name||"?").charAt(0)}
-          </div>
-      }
+    <div
+      style={{
+        width: w,
+        height: h,
+        borderRadius: 8,
+        overflow: "hidden",
+        border: "2px solid rgba(255,160,60,0.45)",
+        background: "#120404",
+        boxShadow: "0 8px 28px rgba(0,0,0,0.65)",
+        flexShrink: 0,
+      }}
+    >
+      {card?.imageUrl && !fail ? (
+        <img
+          src={card.imageUrl}
+          alt={name}
+          onError={() => setFail(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}
+        />
+      ) : (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: Math.round(w * 0.25),
+            color: "#ff6030",
+            fontFamily: "'Cinzel',serif",
+            fontWeight: 900,
+          }}
+        >
+          {(name || "?").charAt(0)}
+        </div>
+      )}
     </div>
   );
 }
 
-// Battlefield card with image as background
 function BfCard({ name, note }) {
   const [fail, setFail] = useState(false);
   const card = lookupCard(name);
+
   return (
-    <div style={{ position:"relative", borderRadius:8, overflow:"hidden",
-      border:"1.5px solid rgba(255,160,60,0.3)", height:84, width:230, background:"#0a0505" }}>
-      {card?.imageUrl && !fail &&
-        <img src={card.imageUrl} alt={name} onError={()=>setFail(true)}
-          style={{ position:"absolute", inset:0, width:"100%", height:"100%",
-            objectFit:"cover", objectPosition:"center", opacity:0.75, transform:"scale(1.5)" }} />
-      }
-      <div style={{ position:"absolute", inset:0,
-        background:"linear-gradient(90deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.15) 65%,rgba(0,0,0,0.45) 100%)" }} />
-      <div style={{ position:"relative", zIndex:1, padding:"9px 13px", height:"100%",
-        display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
-        <div style={{ fontWeight:900, color:"#fff", fontSize:12, fontFamily:"'Cinzel',serif",
-          textShadow:"0 1px 4px rgba(0,0,0,0.9)" }}>{name||"Battlefield"}</div>
-        {note && <div style={{ fontSize:9.5, color:"#d4b080", fontFamily:"'Cinzel',serif",
-          textShadow:"0 1px 4px rgba(0,0,0,0.9)" }}>{note}</div>}
+    <div
+      style={{
+        position: "relative",
+        borderRadius: 8,
+        overflow: "hidden",
+        border: "1.5px solid rgba(255,160,60,0.3)",
+        height: 84,
+        width: 230,
+        background: "#0a0505",
+      }}
+    >
+      {card?.imageUrl && !fail && (
+        <img
+          src={card.imageUrl}
+          alt={name}
+          onError={() => setFail(true)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center",
+            opacity: 0.75,
+            transform: "scale(1.5)",
+          }}
+        />
+      )}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(90deg,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.15) 65%,rgba(0,0,0,0.45) 100%)",
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: "9px 13px",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+        }}
+      >
+        <div
+          style={{
+            fontWeight: 900,
+            color: "#fff",
+            fontSize: 12,
+            fontFamily: "'Cinzel',serif",
+            textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+          }}
+        >
+          {name || "Battlefield"}
+        </div>
+        {note && (
+          <div
+            style={{
+              fontSize: 9.5,
+              color: "#d4b080",
+              fontFamily: "'Cinzel',serif",
+              textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+            }}
+          >
+            {note}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// Badge used in the sideboard table rows
 function Badge({ name, count, isOut }) {
   const [fail, setFail] = useState(false);
   const card = lookupCard(name);
+
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:4,
-      background: isOut ? "rgba(220,60,60,0.14)" : "rgba(60,200,120,0.14)",
-      border:`1px solid ${isOut?"#c0392b40":"#27ae6040"}`,
-      borderRadius:5, padding:"2px 7px 2px 3px",
-      color: isOut ? "#ff8888" : "#7affa8",
-      fontSize:10.5, fontFamily:"'Cinzel',serif", whiteSpace:"nowrap" }}>
-      {card?.imageUrl && !fail
-        ? <img src={card.imageUrl} alt={name} onError={()=>setFail(true)}
-            style={{ width:16, height:22, objectFit:"cover", objectPosition:"top", borderRadius:2, flexShrink:0 }} />
-        : <span style={{ width:16, height:16, borderRadius:2, background:"rgba(255,80,30,0.1)",
-            display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:7, color:"#ff8060", fontWeight:900 }}>
-            {(name||"?").charAt(0)}
-          </span>
-      }
-      <span style={{ fontWeight:700, fontSize:9.5 }}>{count}×</span>
-      {(name||"").split(",")[0]}
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        background: isOut ? "rgba(220,60,60,0.14)" : "rgba(60,200,120,0.14)",
+        border: `1px solid ${isOut ? "#c0392b40" : "#27ae6040"}`,
+        borderRadius: 5,
+        padding: "2px 7px 2px 3px",
+        color: isOut ? "#ff8888" : "#7affa8",
+        fontSize: 10.5,
+        fontFamily: "'Cinzel',serif",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {card?.imageUrl && !fail ? (
+        <img
+          src={card.imageUrl}
+          alt={name}
+          onError={() => setFail(true)}
+          style={{ width: 16, height: 22, objectFit: "cover", objectPosition: "top", borderRadius: 2, flexShrink: 0 }}
+        />
+      ) : (
+        <span
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: 2,
+            background: "rgba(255,80,30,0.1)",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 7,
+            color: "#ff8060",
+            fontWeight: 900,
+          }}
+        >
+          {(name || "?").charAt(0)}
+        </span>
+      )}
+      <span style={{ fontWeight: 700, fontSize: 9.5 }}>{count}×</span>
+      {(name || "").split(",")[0]}
     </span>
   );
 }
 
-// Rune pip + row
 function RunePip({ domain }) {
   const c = DOMAIN_COLORS[domain] || DOMAIN_COLORS.Colorless;
   return (
-    <div style={{ width:16, height:16, borderRadius:"50%", background:c.bg,
-      border:`1.5px solid ${c.border}`, boxShadow:`0 0 5px ${c.border}44`,
-      display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-      <div style={{ width:7, height:7, borderRadius:"50%", background:c.border, opacity:0.95 }} />
+    <div
+      style={{
+        width: 16,
+        height: 16,
+        borderRadius: "50%",
+        background: c.bg,
+        border: `1.5px solid ${c.border}`,
+        boxShadow: `0 0 5px ${c.border}44`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.border, opacity: 0.95 }} />
     </div>
   );
 }
+
 function RuneRow({ name, count }) {
-  const domain = name.replace(/\s*rune\s*/i,"").trim();
+  const domain = name.replace(/\s*rune\s*/i, "").trim();
   const c = DOMAIN_COLORS[domain] || DOMAIN_COLORS.Colorless;
+
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:6, padding:"2px 0" }}>
-      <div style={{ display:"flex", gap:3, flexWrap:"wrap" }}>
-        {Array(Math.min(count,12)).fill(0).map((_,i)=><RunePip key={i} domain={domain}/>)}
+    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
+      <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+        {Array(Math.min(count, 12))
+          .fill(0)
+          .map((_, i) => (
+            <RunePip key={i} domain={domain} />
+          ))}
       </div>
-      <span style={{ fontSize:10.5, color:c.text, fontFamily:"'Cinzel',serif", fontWeight:700 }}>
+      <span style={{ fontSize: 10.5, color: c.text, fontFamily: "'Cinzel',serif", fontWeight: 700 }}>
         {count}× {name}
       </span>
     </div>
@@ -294,146 +532,271 @@ function RuneRow({ name, count }) {
 
 // ── LEGEND DROPDOWN ────────────────────────────────────────────────────────
 function LegendDropdown({ value, onChange, placeholder = "Select legend..." }) {
-  const [open,   setOpen]   = useState(false);
+  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [local,  setLocal]  = useState(legendsArr);
+  const [local, setLocal] = useState(legendsArr);
   const ref = useRef(null);
 
-  // Refresh local list once legends load
   useEffect(() => {
-    if (legendsArr.length) { setLocal(legendsArr); return; }
+    if (legendsArr.length) {
+      setLocal(legendsArr);
+      return;
+    }
     const t = setInterval(() => {
-      if (legendsArr.length) { setLocal([...legendsArr]); clearInterval(t); }
+      if (legendsArr.length) {
+        setLocal([...legendsArr]);
+        clearInterval(t);
+      }
     }, 400);
     return () => clearInterval(t);
   }, []);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
   const filtered = search
-    ? local.filter(l => (l.cleanName||l.name).toLowerCase().includes(search.toLowerCase()))
+    ? local.filter((l) => (l.cleanName || l.name).toLowerCase().includes(search.toLowerCase()))
     : local;
 
-  const selected = local.find(l => l.id === value);
+  const selected = local.find((l) => l.id === value);
 
   return (
-    <div ref={ref} style={{ position:"relative" }}>
-      {/* Trigger button */}
-      <div onClick={() => setOpen(o=>!o)} style={{
-        display:"flex", alignItems:"center", gap:10, cursor:"pointer",
-        background:"rgba(255,255,255,0.045)",
-        border:`1px solid ${open?"rgba(255,120,60,0.55)":"rgba(255,255,255,0.09)"}`,
-        borderRadius:7, padding:"6px 10px", userSelect:"none",
-        transition:"border-color 0.15s",
-      }}>
+    <div ref={ref} style={{ position: "relative" }}>
+      <div
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          cursor: "pointer",
+          background: "rgba(255,255,255,0.045)",
+          border: `1px solid ${open ? "rgba(255,120,60,0.55)" : "rgba(255,255,255,0.09)"}`,
+          borderRadius: 7,
+          padding: "6px 10px",
+          userSelect: "none",
+          transition: "border-color 0.15s",
+        }}
+      >
         {selected ? (
           <>
-            <div style={{ width:28, height:39, borderRadius:3, overflow:"hidden", flexShrink:0,
-              border:"1px solid rgba(255,120,60,0.35)" }}>
-              {selected.imageUrl
-                ? <img src={selected.imageUrl} alt={selected.name}
-                    style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top" }} />
-                : <div style={{ width:"100%", height:"100%", background:"#1a0808", display:"flex",
-                    alignItems:"center", justifyContent:"center", fontSize:10, color:"#ff6030", fontWeight:900 }}>
-                    {selected.name.charAt(0)}
-                  </div>
-              }
+            <div
+              style={{
+                width: 28,
+                height: 39,
+                borderRadius: 3,
+                overflow: "hidden",
+                flexShrink: 0,
+                border: "1px solid rgba(255,120,60,0.35)",
+              }}
+            >
+              {selected.imageUrl ? (
+                <img
+                  src={selected.imageUrl}
+                  alt={selected.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    background: "#1a0808",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 10,
+                    color: "#ff6030",
+                    fontWeight: 900,
+                  }}
+                >
+                  {selected.name.charAt(0)}
+                </div>
+              )}
             </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12, color:"#fff", fontFamily:"'Cinzel',serif", fontWeight:700,
-                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                {(selected.cleanName||selected.name).split(",")[0]}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#fff",
+                  fontFamily: "'Cinzel',serif",
+                  fontWeight: 700,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {(selected.cleanName || selected.name).split(",")[0]}
               </div>
-              <div style={{ fontSize:9, color:"#888", fontFamily:"'Cinzel',serif", marginTop:1 }}>
+              <div style={{ fontSize: 9, color: "#888", fontFamily: "'Cinzel',serif", marginTop: 1 }}>
                 {selected.domain?.join(" / ") || ""}
               </div>
             </div>
           </>
         ) : (
-          <span style={{ flex:1, fontSize:12, color:"#444", fontFamily:"'Cinzel',serif" }}>{placeholder}</span>
+          <span style={{ flex: 1, fontSize: 12, color: "#444", fontFamily: "'Cinzel',serif" }}>{placeholder}</span>
         )}
-        <span style={{ color:"#555", fontSize:9, flexShrink:0 }}>{open?"▲":"▼"}</span>
+        <span style={{ color: "#555", fontSize: 9, flexShrink: 0 }}>{open ? "▲" : "▼"}</span>
       </div>
 
-      {/* Dropdown panel */}
       {open && (
-        <div style={{
-          position:"absolute", top:"calc(100% + 5px)", left:0, right:0, zIndex:1000,
-          background:"#0d0202", border:"1px solid rgba(255,120,60,0.28)", borderRadius:8,
-          boxShadow:"0 12px 40px rgba(0,0,0,0.85)", display:"flex", flexDirection:"column",
-          maxHeight:320, overflow:"hidden",
-        }}>
-          {/* Search */}
-          <div style={{ padding:"8px 10px", borderBottom:"1px solid rgba(255,255,255,0.055)" }}>
-            <input value={search} onChange={e=>setSearch(e.target.value)}
-              placeholder="Search legends..." autoFocus onClick={e=>e.stopPropagation()}
-              style={{ ...IS, padding:"5px 9px", fontSize:11 }} />
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 5px)",
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            background: "#0d0202",
+            border: "1px solid rgba(255,120,60,0.28)",
+            borderRadius: 8,
+            boxShadow: "0 12px 40px rgba(0,0,0,0.85)",
+            display: "flex",
+            flexDirection: "column",
+            maxHeight: 320,
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.055)" }}>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search legends..."
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              style={{ ...IS, padding: "5px 9px", fontSize: 11 }}
+            />
           </div>
 
-          <div style={{ overflowY:"auto", flex:1 }}>
-            {/* Clear / none */}
-            <div onClick={()=>{ onChange(null); setOpen(false); setSearch(""); }}
-              style={{ padding:"7px 12px", cursor:"pointer", fontSize:11, color:"#555",
-                fontFamily:"'Cinzel',serif", fontStyle:"italic",
-                borderBottom:"1px solid rgba(255,255,255,0.04)",
-                background:"rgba(255,255,255,0.015)" }}>
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            <div
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+                setSearch("");
+              }}
+              style={{
+                padding: "7px 12px",
+                cursor: "pointer",
+                fontSize: 11,
+                color: "#555",
+                fontFamily: "'Cinzel',serif",
+                fontStyle: "italic",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                background: "rgba(255,255,255,0.015)",
+              }}
+            >
               — No legend —
             </div>
 
             {filtered.length === 0 && (
-              <div style={{ padding:"14px", textAlign:"center", fontSize:11, color:"#444",
-                fontFamily:"'Cinzel',serif" }}>No legends found</div>
+              <div
+                style={{
+                  padding: "14px",
+                  textAlign: "center",
+                  fontSize: 11,
+                  color: "#444",
+                  fontFamily: "'Cinzel',serif",
+                }}
+              >
+                No legends found
+              </div>
             )}
 
-            {filtered.map(leg => {
+            {filtered.map((leg) => {
               const isSel = selected?.id === leg.id;
               return (
-                <div key={leg.id}
-                  onClick={()=>{ onChange(leg.id); setOpen(false); setSearch(""); }}
-                  style={{
-                    display:"flex", alignItems:"center", gap:10, padding:"7px 12px", cursor:"pointer",
-                    borderBottom:"1px solid rgba(255,255,255,0.03)",
-                    background: isSel ? "rgba(255,80,30,0.11)" : "transparent",
-                    transition:"background 0.1s",
+                <div
+                  key={leg.id}
+                  onClick={() => {
+                    onChange(leg.id);
+                    setOpen(false);
+                    setSearch("");
                   }}
-                  onMouseEnter={e=>{ if(!isSel) e.currentTarget.style.background="rgba(255,255,255,0.048)"; }}
-                  onMouseLeave={e=>{ e.currentTarget.style.background=isSel?"rgba(255,80,30,0.11)":"transparent"; }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "7px 12px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid rgba(255,255,255,0.03)",
+                    background: isSel ? "rgba(255,80,30,0.11)" : "transparent",
+                    transition: "background 0.1s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSel) e.currentTarget.style.background = "rgba(255,255,255,0.048)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = isSel ? "rgba(255,80,30,0.11)" : "transparent";
+                  }}
                 >
-                  {/* Card thumbnail */}
-                  <div style={{ width:32, height:45, borderRadius:3, overflow:"hidden", flexShrink:0,
-                    border:"1px solid rgba(255,120,60,0.22)", background:"#1a0808" }}>
-                    {leg.imageUrl
-                      ? <img src={leg.imageUrl} alt={leg.name}
-                          style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top" }} />
-                      : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center",
-                          justifyContent:"center", fontSize:13, color:"#ff6030", fontWeight:900,
-                          fontFamily:"'Cinzel',serif" }}>{leg.name.charAt(0)}</div>
-                    }
+                  <div
+                    style={{
+                      width: 32,
+                      height: 45,
+                      borderRadius: 3,
+                      overflow: "hidden",
+                      flexShrink: 0,
+                      border: "1px solid rgba(255,120,60,0.22)",
+                      background: "#1a0808",
+                    }}
+                  >
+                    {leg.imageUrl ? (
+                      <img
+                        src={leg.imageUrl}
+                        alt={leg.name}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 13,
+                          color: "#ff6030",
+                          fontWeight: 900,
+                          fontFamily: "'Cinzel',serif",
+                        }}
+                      >
+                        {leg.name.charAt(0)}
+                      </div>
+                    )}
                   </div>
 
-                  <div style={{ minWidth:0, flex:1 }}>
-                    <div style={{ fontSize:11.5, color:"#fff", fontFamily:"'Cinzel',serif", fontWeight:700,
-                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                      {(leg.cleanName||leg.name).split(",")[0]}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: "#fff",
+                        fontFamily: "'Cinzel',serif",
+                        fontWeight: 700,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {(leg.cleanName || leg.name).split(",")[0]}
                     </div>
                     {leg.name.includes(",") && (
-                      <div style={{ fontSize:8.5, color:"#666", fontFamily:"'Cinzel',serif" }}>
+                      <div style={{ fontSize: 8.5, color: "#666", fontFamily: "'Cinzel',serif" }}>
                         {leg.name.split(",").slice(1).join(",").trim()}
                       </div>
                     )}
-                    <div style={{ fontSize:8.5, color:"#888", fontFamily:"'Cinzel',serif", marginTop:1 }}>
+                    <div style={{ fontSize: 8.5, color: "#888", fontFamily: "'Cinzel',serif", marginTop: 1 }}>
                       {leg.domain?.join(" · ") || ""}
-                      {leg.rarity && <span style={{ marginLeft:6, opacity:0.6 }}>{leg.rarity}</span>}
+                      {leg.rarity && <span style={{ marginLeft: 6, opacity: 0.6 }}>{leg.rarity}</span>}
                     </div>
                   </div>
 
-                  {isSel && <span style={{ color:"#ff9060", fontSize:13, flexShrink:0 }}>✓</span>}
+                  {isSel && <span style={{ color: "#ff9060", fontSize: 13, flexShrink: 0 }}>✓</span>}
                 </div>
               );
             })}
@@ -444,188 +807,285 @@ function LegendDropdown({ value, onChange, placeholder = "Select legend..." }) {
   );
 }
 
-// ── CARD SELECTOR (for matchup out/in picker) ──────────────────────────────
+// ── CARD SELECTOR ──────────────────────────────────────────────────────────
 function CardSelector({ cards, label, selected, onChange, theme }) {
-  // cards is already expanded (3× Scrapheap = ["Scrapheap","Scrapheap","Scrapheap"])
-  // so counts[card] = how many copies are in the deck
   const counts = {};
-  cards.forEach(c => { counts[c]=(counts[c]||0)+1; });
+  cards.forEach((c) => {
+    counts[c] = (counts[c] || 0) + 1;
+  });
   const unique = [...new Set(cards)];
-  const isOut  = label === "OUT";
-  const T = theme || {};
-
-  const activeCol  = isOut ? "#ff8888" : "#7affa8";
-  const activeBg   = isOut ? "rgba(220,60,60,0.09)"  : "rgba(60,200,120,0.09)";
-  const activeBord = isOut ? "#c0392b40"              : "#27ae6040";
+  const isOut = label === "OUT";
+  const activeCol = isOut ? "#ff8888" : "#7affa8";
+  const activeBg = isOut ? "rgba(220,60,60,0.09)" : "rgba(60,200,120,0.09)";
+  const activeBord = isOut ? "#c0392b40" : "#27ae6040";
 
   const toggle = (card, dir) => {
-    const ex  = selected.find(s=>s.name===card);
+    const ex = selected.find((s) => s.name === card);
     const max = counts[card] || 3;
-    if (dir==="up") {
-      if (!ex)              onChange([...selected,{name:card,count:1}]);
-      else if(ex.count<max) onChange(selected.map(s=>s.name===card?{...s,count:s.count+1}:s));
+    if (dir === "up") {
+      if (!ex) onChange([...selected, { name: card, count: 1 }]);
+      else if (ex.count < max) onChange(selected.map((s) => (s.name === card ? { ...s, count: s.count + 1 } : s)));
     } else {
       if (!ex) return;
-      if(ex.count<=1)       onChange(selected.filter(s=>s.name!==card));
-      else                  onChange(selected.map(s=>s.name===card?{...s,count:s.count-1}:s));
+      if (ex.count <= 1) onChange(selected.filter((s) => s.name !== card));
+      else onChange(selected.map((s) => (s.name === card ? { ...s, count: s.count - 1 } : s)));
     }
   };
 
   return (
     <div>
-      {/* Header row */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-        <div style={{ fontSize:9.5, color:activeCol, fontFamily:"'Cinzel',serif",
-          textTransform:"uppercase", letterSpacing:2, fontWeight:700 }}>{label}</div>
-        <div style={{ fontSize:8.5, color:"#555", fontFamily:"'Cinzel',serif" }}>
-          {selected.reduce((s,c)=>s+c.count,0)} / {cards.length} selected
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div
+          style={{
+            fontSize: 9.5,
+            color: activeCol,
+            fontFamily: "'Cinzel',serif",
+            textTransform: "uppercase",
+            letterSpacing: 2,
+            fontWeight: 700,
+          }}
+        >
+          {label}
+        </div>
+        <div style={{ fontSize: 8.5, color: "#555", fontFamily: "'Cinzel',serif" }}>
+          {selected.reduce((s, c) => s + c.count, 0)} / {cards.length} selected
         </div>
       </div>
 
-      <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-        {unique.map(card => {
-          const sel      = selected.find(s=>s.name===card);
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {unique.map((card) => {
+          const sel = selected.find((s) => s.name === card);
           const selCount = sel ? sel.count : 0;
-          const deckCount = counts[card]; // total copies in deck
-          // Progress: how many of this card are selected vs available
+          const deckCount = counts[card];
           const pct = deckCount > 0 ? selCount / deckCount : 0;
 
           return (
-            <div key={card} style={{
-              display:"flex", alignItems:"center", gap:8, position:"relative", overflow:"hidden",
-              background: selCount>0 ? activeBg : "rgba(255,255,255,0.022)",
-              border:`1px solid ${selCount>0 ? activeBord : "rgba(255,255,255,0.055)"}`,
-              borderRadius:7, padding:"4px 8px",
-            }}>
-              {/* Progress fill behind the row */}
-              {selCount>0 && (
-                <div style={{
-                  position:"absolute", left:0, top:0, bottom:0,
-                  width:`${pct*100}%`,
-                  background: isOut ? "rgba(220,60,60,0.06)" : "rgba(60,200,120,0.06)",
-                  transition:"width 0.2s", pointerEvents:"none",
-                }}/>
+            <div
+              key={card}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                position: "relative",
+                overflow: "hidden",
+                background: selCount > 0 ? activeBg : "rgba(255,255,255,0.022)",
+                border: `1px solid ${selCount > 0 ? activeBord : "rgba(255,255,255,0.055)"}`,
+                borderRadius: 7,
+                padding: "4px 8px",
+              }}
+            >
+              {selCount > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: `${pct * 100}%`,
+                    background: isOut ? "rgba(220,60,60,0.06)" : "rgba(60,200,120,0.06)",
+                    transition: "width 0.2s",
+                    pointerEvents: "none",
+                  }}
+                />
               )}
 
-              <Thumb name={card} w={26} h={36}/>
-
-              {/* Card name */}
-              <span style={{ flex:1, fontFamily:"'Cinzel',serif", fontSize:10,
-                color:selCount>0?"#fff":"#666", overflow:"hidden", textOverflow:"ellipsis",
-                whiteSpace:"nowrap", position:"relative" }}>
+              <Thumb name={card} w={26} h={36} />
+              <span
+                style={{
+                  flex: 1,
+                  fontFamily: "'Cinzel',serif",
+                  fontSize: 10,
+                  color: selCount > 0 ? "#fff" : "#666",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  position: "relative",
+                }}
+              >
                 {card.split(",")[0]}
               </span>
 
-              {/* Deck count badge — always visible */}
-              <span style={{
-                fontSize:9, color:"#888", fontFamily:"'Cinzel',serif",
-                background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)",
-                borderRadius:4, padding:"1px 5px", flexShrink:0, position:"relative",
-              }} title={`${deckCount} in deck`}>
+              <span
+                style={{
+                  fontSize: 9,
+                  color: "#888",
+                  fontFamily: "'Cinzel',serif",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 4,
+                  padding: "1px 5px",
+                  flexShrink: 0,
+                  position: "relative",
+                }}
+                title={`${deckCount} in deck`}
+              >
                 {deckCount} in deck
               </span>
 
-              {/* Selected count */}
-              {selCount>0 && (
-                <span style={{ fontSize:10, color:activeCol, fontWeight:700,
-                  minWidth:18, textAlign:"center", position:"relative", flexShrink:0 }}>
+              {selCount > 0 && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: activeCol,
+                    fontWeight: 700,
+                    minWidth: 18,
+                    textAlign: "center",
+                    position: "relative",
+                    flexShrink: 0,
+                  }}
+                >
                   {selCount}×
                 </span>
               )}
 
-              {/* +/- buttons */}
-              <div style={{ display:"flex", gap:2, position:"relative" }}>
-                <button onClick={()=>toggle(card,"down")} style={{...MINIBTN,color:"#ff7b7b"}}>−</button>
-                <button onClick={()=>toggle(card,"up")}   style={{...MINIBTN,color:"#6effa8",
-                  opacity: selCount >= deckCount ? 0.3 : 1,
-                  cursor:  selCount >= deckCount ? "not-allowed" : "pointer",
-                }}>+</button>
+              <div style={{ display: "flex", gap: 2, position: "relative" }}>
+                <button onClick={() => toggle(card, "down")} style={{ ...MINIBTN, color: "#ff7b7b" }}>
+                  −
+                </button>
+                <button
+                  onClick={() => toggle(card, "up")}
+                  style={{
+                    ...MINIBTN,
+                    color: "#6effa8",
+                    opacity: selCount >= deckCount ? 0.3 : 1,
+                    cursor: selCount >= deckCount ? "not-allowed" : "pointer",
+                  }}
+                >
+                  +
+                </button>
               </div>
             </div>
           );
         })}
-        {unique.length===0 && (
-          <div style={{ fontSize:10, color:"#444", fontStyle:"italic", padding:"4px 0",
-            fontFamily:"'Cinzel',serif" }}>No cards in this section</div>
+
+        {unique.length === 0 && (
+          <div style={{ fontSize: 10, color: "#444", fontStyle: "italic", padding: "4px 0", fontFamily: "'Cinzel',serif" }}>
+            No cards in this section
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-const MINIBTN = { background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:4,
-  cursor:"pointer", width:20, height:20, display:"flex", alignItems:"center", justifyContent:"center",
-  fontSize:14, lineHeight:1, padding:0, fontWeight:700 };
+const MINIBTN = {
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 4,
+  cursor: "pointer",
+  width: 20,
+  height: 20,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 14,
+  lineHeight: 1,
+  padding: 0,
+  fontWeight: 700,
+};
 
 // ── MATCHUP EDITOR ─────────────────────────────────────────────────────────
 function MatchupEditor({ mainDeck, sideboard, onSave, onCancel, initial, theme }) {
-  const [deckName,   setDeckName]   = useState(initial?.deckName   || "");
-  const [legendId,   setLegendId]   = useState(initial?.legendId   || null);
-  const [type,       setType]       = useState(initial?.type       || "Even Matchup");
-  const [notes,      setNotes]      = useState(initial?.notes      || "");
-  const [out,        setOut]        = useState(initial?.out        || []);
-  const [ins,        setIns]        = useState(initial?.in         || []);
+  const [deckName, setDeckName] = useState(initial?.deckName || "");
+  const [legendId, setLegendId] = useState(initial?.legendId || null);
+  const [type, setType] = useState(initial?.type || "Even Matchup");
+  const [notes, setNotes] = useState(initial?.notes || "");
+  const [out, setOut] = useState(initial?.out || []);
+  const [ins, setIns] = useState(initial?.in || []);
 
   const T = theme || {};
-  const selLeg = legendsArr.find(l=>l.id===legendId);
+  const selLeg = legendsArr.find((l) => l.id === legendId);
 
   return (
-    <div style={{ background: T.bgPanel || "rgba(15,3,3,0.97)",
-      border:`1px solid ${T.borderBright || "rgba(255,120,60,0.28)"}`,
-      borderRadius:12, padding:18, marginBottom:16 }}>
-
-      {/* Top row: form + legend preview */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 170px", gap:16, marginBottom:16 }}>
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+    <div
+      style={{
+        background: T.bgPanel || "rgba(15,3,3,0.97)",
+        border: `1px solid ${T.borderBright || "rgba(255,120,60,0.28)"}`,
+        borderRadius: 12,
+        padding: 18,
+        marginBottom: 16,
+      }}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 170px", gap: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div>
             <label style={LS}>Deck Name</label>
-            <input value={deckName} onChange={e=>setDeckName(e.target.value)}
-              placeholder="e.g. Classic Kai'Sa" style={{...IS, borderColor: T.border || "rgba(255,255,255,0.09)"}}/>
+            <input
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              placeholder="e.g. Classic Kai'Sa"
+              style={{ ...IS, borderColor: T.border || "rgba(255,255,255,0.09)" }}
+            />
           </div>
           <div>
             <label style={LS}>Opponent Legend</label>
-            <LegendDropdown value={legendId} onChange={setLegendId} placeholder="Select opponent legend..."/>
+            <LegendDropdown value={legendId} onChange={setLegendId} placeholder="Select opponent legend..." />
           </div>
           <div>
             <label style={LS}>Matchup Type</label>
-            <select value={type} onChange={e=>setType(e.target.value)} style={{...IS, borderColor: T.border || "rgba(255,255,255,0.09)"}}>
-              {MATCHUP_TYPES.map(t=><option key={t}>{t}</option>)}
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              style={{ ...IS, borderColor: T.border || "rgba(255,255,255,0.09)" }}
+            >
+              {MATCHUP_TYPES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
             </select>
           </div>
           <div>
             <label style={LS}>Notes (optional)</label>
-            <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={3}
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
               placeholder="Key notes about this matchup..."
-              style={{...IS, resize:"vertical", fontFamily:"'Crimson Text',serif", lineHeight:1.65,
-                fontSize:11, borderColor: T.border || "rgba(255,255,255,0.09)"}}/>
+              style={{
+                ...IS,
+                resize: "vertical",
+                fontFamily: "'Crimson Text',serif",
+                lineHeight: 1.65,
+                fontSize: 11,
+                borderColor: T.border || "rgba(255,255,255,0.09)",
+              }}
+            />
           </div>
         </div>
 
-        {/* Legend card preview */}
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-          gap:8, background:"rgba(0,0,0,0.22)", borderRadius:8,
-          border:`1px solid ${T.border || "rgba(255,255,255,0.05)"}`, padding:12 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            background: "rgba(0,0,0,0.22)",
+            borderRadius: 8,
+            border: `1px solid ${T.border || "rgba(255,255,255,0.05)"}`,
+            padding: 12,
+          }}
+        >
           {selLeg ? (
             <>
-              <FullCard name={selLeg.name} w={110} h={154}/>
-              <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize:11, color:"#fff", fontFamily:"'Cinzel',serif", fontWeight:700 }}>
-                  {(selLeg.cleanName||selLeg.name).split(",")[0]}
+              <FullCard name={selLeg.name} wantedType="Legend" w={110} h={154} />
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: "#fff", fontFamily: "'Cinzel',serif", fontWeight: 700 }}>
+                  {(selLeg.cleanName || selLeg.name).split(",")[0]}
                 </div>
                 {selLeg.name.includes(",") && (
-                  <div style={{ fontSize:8.5, color:"#888", fontFamily:"'Cinzel',serif", marginTop:1 }}>
+                  <div style={{ fontSize: 8.5, color: "#888", fontFamily: "'Cinzel',serif", marginTop: 1 }}>
                     {selLeg.name.split(",").slice(1).join(",").trim()}
                   </div>
                 )}
-                <div style={{ fontSize:8.5, color: T.accent || "#666", fontFamily:"'Cinzel',serif", marginTop:2 }}>
-                  {selLeg.domain?.join(" · ")||""}
+                <div style={{ fontSize: 8.5, color: T.accent || "#666", fontFamily: "'Cinzel',serif", marginTop: 2 }}>
+                  {selLeg.domain?.join(" · ") || ""}
                 </div>
               </div>
             </>
           ) : (
-            <div style={{ textAlign:"center", color:"#2a2a2a" }}>
-              <div style={{ fontSize:36, marginBottom:8 }}>🃏</div>
-              <div style={{ fontSize:10, fontFamily:"'Cinzel',serif", lineHeight:1.5 }}>
+            <div style={{ textAlign: "center", color: "#2a2a2a" }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>🃏</div>
+              <div style={{ fontSize: 10, fontFamily: "'Cinzel',serif", lineHeight: 1.5 }}>
                 Select a legend to preview
               </div>
             </div>
@@ -633,29 +1093,54 @@ function MatchupEditor({ mainDeck, sideboard, onSave, onCancel, initial, theme }
         </div>
       </div>
 
-      {/* Card selectors */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14,
-        maxHeight:400, overflowY:"auto" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14, maxHeight: 400, overflowY: "auto" }}>
         <div>
-          <div style={{ fontSize:8.5, color:"#666", marginBottom:5, fontFamily:"'Cinzel',serif",
-            textTransform:"uppercase", letterSpacing:1.5 }}>Take OUT (from Main Deck)</div>
-          <CardSelector cards={expandCards(mainDeck)} label="OUT" selected={out} onChange={setOut} theme={T}/>
+          <div
+            style={{
+              fontSize: 8.5,
+              color: "#666",
+              marginBottom: 5,
+              fontFamily: "'Cinzel',serif",
+              textTransform: "uppercase",
+              letterSpacing: 1.5,
+            }}
+          >
+            Take OUT (from Main Deck)
+          </div>
+          <CardSelector cards={expandCards(mainDeck)} label="OUT" selected={out} onChange={setOut} theme={T} />
         </div>
         <div>
-          <div style={{ fontSize:8.5, color:"#666", marginBottom:5, fontFamily:"'Cinzel',serif",
-            textTransform:"uppercase", letterSpacing:1.5 }}>Bring IN (from Sideboard)</div>
-          <CardSelector cards={expandCards(sideboard)} label="IN" selected={ins} onChange={setIns} theme={T}/>
+          <div
+            style={{
+              fontSize: 8.5,
+              color: "#666",
+              marginBottom: 5,
+              fontFamily: "'Cinzel',serif",
+              textTransform: "uppercase",
+              letterSpacing: 1.5,
+            }}
+          >
+            Bring IN (from Sideboard)
+          </div>
+          <CardSelector cards={expandCards(sideboard)} label="IN" selected={ins} onChange={setIns} theme={T} />
         </div>
       </div>
 
-      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-        <button onClick={onCancel}
-          style={{...BS, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)"}}>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button
+          onClick={onCancel}
+          style={{ ...BS, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
+        >
           Cancel
         </button>
-        <button onClick={()=>onSave({deckName,legendId,type,notes,out,in:ins})}
-          style={{...BS, background: T.gradient || "linear-gradient(135deg,#8b0000,#c0392b)",
-            border:`1px solid ${T.borderBright || "#e74c3c55"}`}}>
+        <button
+          onClick={() => onSave({ deckName, legendId, type, notes, out, in: ins })}
+          style={{
+            ...BS,
+            background: T.gradient || "linear-gradient(135deg,#8b0000,#c0392b)",
+            border: `1px solid ${T.borderBright || "#e74c3c55"}`,
+          }}
+        >
           Save Matchup
         </button>
       </div>
@@ -663,48 +1148,129 @@ function MatchupEditor({ mainDeck, sideboard, onSave, onCancel, initial, theme }
   );
 }
 
-// ── MATCHUP ROW (build list) ───────────────────────────────────────────────
+// ── MATCHUP ROW ────────────────────────────────────────────────────────────
 function MatchupRow({ m, idx, onEdit, onDelete, theme }) {
   const [fail, setFail] = useState(false);
-  const T   = theme || {};
-  const leg = legendsArr.find(l=>l.id===m.legendId);
+  const T = theme || {};
+  const leg = legendsArr.find((l) => l.id === m.legendId);
+
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"220px 1fr 1fr",
-      borderBottom:`1px solid ${T.border||"rgba(255,255,255,0.05)"}`,
-      background:idx%2===0?`${T.glow||"rgba(255,255,255,0.012)"}`:"transparent" }}>
-      <div style={{ padding:"9px 11px", display:"flex", alignItems:"center", gap:9 }}>
-        <div style={{ width:33, height:46, borderRadius:4, overflow:"hidden", flexShrink:0,
-          border:`1px solid ${MATCHUP_COLOR[m.type]}44`, background:"#1a0808" }}>
-          {leg?.imageUrl && !fail
-            ? <img src={leg.imageUrl} alt="" onError={()=>setFail(true)}
-                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}/>
-            : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",
-                justifyContent:"center",fontSize:13,color:MATCHUP_COLOR[m.type],fontWeight:900,fontFamily:"'Cinzel',serif"}}>
-                {(m.deckName||"?").charAt(0)}
-              </div>
-          }
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "220px 1fr 1fr",
+        borderBottom: `1px solid ${T.border || "rgba(255,255,255,0.05)"}`,
+        background: idx % 2 === 0 ? `${T.glow || "rgba(255,255,255,0.012)"}` : "transparent",
+      }}
+    >
+      <div style={{ padding: "9px 11px", display: "flex", alignItems: "center", gap: 9 }}>
+        <div
+          style={{
+            width: 33,
+            height: 46,
+            borderRadius: 4,
+            overflow: "hidden",
+            flexShrink: 0,
+            border: `1px solid ${MATCHUP_COLOR[m.type]}44`,
+            background: "#1a0808",
+          }}
+        >
+          {leg?.imageUrl && !fail ? (
+            <img
+              src={leg.imageUrl}
+              alt=""
+              onError={() => setFail(true)}
+              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 13,
+                color: MATCHUP_COLOR[m.type],
+                fontWeight: 900,
+                fontFamily: "'Cinzel',serif",
+              }}
+            >
+              {(m.deckName || "?").charAt(0)}
+            </div>
+          )}
         </div>
-        <div style={{ minWidth:0 }}>
-          <div style={{fontSize:11.5,color:"#fff",fontFamily:"'Cinzel',serif",fontWeight:700,
-            overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.deckName||"Opponent"}</div>
-          {leg && <div style={{fontSize:8.5,color:"#999",fontFamily:"'Cinzel',serif",marginTop:1}}>
-            {(leg.cleanName||leg.name).split(",")[0]}</div>}
-          <div style={{fontSize:9,color:MATCHUP_COLOR[m.type],marginTop:1}}>{m.type}</div>
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: "#fff",
+              fontFamily: "'Cinzel',serif",
+              fontWeight: 700,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {m.deckName || "Opponent"}
+          </div>
+          {leg && (
+            <div style={{ fontSize: 8.5, color: "#999", fontFamily: "'Cinzel',serif", marginTop: 1 }}>
+              {(leg.cleanName || leg.name).split(",")[0]}
+            </div>
+          )}
+          <div style={{ fontSize: 9, color: MATCHUP_COLOR[m.type], marginTop: 1 }}>{m.type}</div>
         </div>
       </div>
-      <div style={{padding:"9px 8px",display:"flex",flexWrap:"wrap",gap:3,alignContent:"flex-start"}}>
-        {m.out?.map((c,i)=><Badge key={i} name={c.name} count={c.count} isOut/>)}
+
+      <div style={{ padding: "9px 8px", display: "flex", flexWrap: "wrap", gap: 3, alignContent: "flex-start" }}>
+        {m.out?.map((c, i) => (
+          <Badge key={i} name={c.name} count={c.count} isOut />
+        ))}
       </div>
-      <div style={{padding:"9px 8px",display:"flex",flexWrap:"wrap",gap:3,alignContent:"flex-start",
-        borderLeft:`1px solid ${T.border||"rgba(255,255,255,0.05)"}`}}>
-        {m.in?.map((c,i)=><Badge key={i} name={c.name} count={c.count} isOut={false}/>)}
-        <div style={{marginLeft:"auto",display:"flex",gap:3,alignSelf:"flex-start"}}>
-          <button onClick={()=>onEdit(idx)}
-            style={{background:"rgba(52,152,219,0.14)",border:"1px solid #3498db33",borderRadius:4,
-              cursor:"pointer",padding:"2px 6px",fontSize:10,color:"#7ac"}}>✏️</button>
-          <button onClick={()=>onDelete(idx)}
-            style={{background:"rgba(231,76,60,0.14)",border:"1px solid #e74c3c33",borderRadius:4,
-              cursor:"pointer",padding:"2px 6px",fontSize:10,color:"#e88"}}>🗑️</button>
+
+      <div
+        style={{
+          padding: "9px 8px",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 3,
+          alignContent: "flex-start",
+          borderLeft: `1px solid ${T.border || "rgba(255,255,255,0.05)"}`,
+        }}
+      >
+        {m.in?.map((c, i) => (
+          <Badge key={i} name={c.name} count={c.count} isOut={false} />
+        ))}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 3, alignSelf: "flex-start" }}>
+          <button
+            onClick={() => onEdit(idx)}
+            style={{
+              background: "rgba(52,152,219,0.14)",
+              border: "1px solid #3498db33",
+              borderRadius: 4,
+              cursor: "pointer",
+              padding: "2px 6px",
+              fontSize: 10,
+              color: "#7ac",
+            }}
+          >
+            ✏️
+          </button>
+          <button
+            onClick={() => onDelete(idx)}
+            style={{
+              background: "rgba(231,76,60,0.14)",
+              border: "1px solid #e74c3c33",
+              borderRadius: 4,
+              cursor: "pointer",
+              padding: "2px 6px",
+              fontSize: 10,
+              color: "#e88",
+            }}
+          >
+            🗑️
+          </button>
         </div>
       </div>
     </div>
@@ -714,40 +1280,104 @@ function MatchupRow({ m, idx, onEdit, onDelete, theme }) {
 // ── GUIDE PREVIEW ──────────────────────────────────────────────────────────
 function PreviewMatchupRow({ m, idx, theme }) {
   const [fail, setFail] = useState(false);
-  const T   = theme || {};
-  const leg = legendsArr.find(l=>l.id===m.legendId);
-  const rowBg = idx%2===0 ? `rgba(255,255,255,0.012)` : "transparent";
+  const T = theme || {};
+  const leg = legendsArr.find((l) => l.id === m.legendId);
+  const rowBg = idx % 2 === 0 ? `rgba(255,255,255,0.012)` : "transparent";
+
   return (
-    <div style={{display:"grid",gridTemplateColumns:"210px 1fr 1fr",
-      borderBottom:`1px solid ${T.border||"rgba(255,255,255,0.05)"}`,
-      background:rowBg, minHeight:60}}>
-      <div style={{padding:"8px 11px",display:"flex",alignItems:"center",gap:9}}>
-        <div style={{width:34,height:48,borderRadius:4,overflow:"hidden",flexShrink:0,
-          border:`1px solid ${MATCHUP_COLOR[m.type]}44`,background:"#1a0808"}}>
-          {leg?.imageUrl && !fail
-            ? <img src={leg.imageUrl} alt="" onError={()=>setFail(true)}
-                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}/>
-            : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",
-                justifyContent:"center",fontSize:14,color:MATCHUP_COLOR[m.type],fontWeight:900,fontFamily:"'Cinzel',serif"}}>
-                {(m.deckName||"?").charAt(0)}
-              </div>
-          }
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "210px 1fr 1fr",
+        borderBottom: `1px solid ${T.border || "rgba(255,255,255,0.05)"}`,
+        background: rowBg,
+        minHeight: 60,
+      }}
+    >
+      <div style={{ padding: "8px 11px", display: "flex", alignItems: "center", gap: 9 }}>
+        <div
+          style={{
+            width: 34,
+            height: 48,
+            borderRadius: 4,
+            overflow: "hidden",
+            flexShrink: 0,
+            border: `1px solid ${MATCHUP_COLOR[m.type]}44`,
+            background: "#1a0808",
+          }}
+        >
+          {leg?.imageUrl && !fail ? (
+            <img
+              src={leg.imageUrl}
+              alt=""
+              onError={() => setFail(true)}
+              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                color: MATCHUP_COLOR[m.type],
+                fontWeight: 900,
+                fontFamily: "'Cinzel',serif",
+              }}
+            >
+              {(m.deckName || "?").charAt(0)}
+            </div>
+          )}
         </div>
-        <div style={{minWidth:0}}>
-          <div style={{fontSize:11,color:"#fff",fontFamily:"'Cinzel',serif",fontWeight:700,
-            overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.deckName||"Opponent"}</div>
-          {leg && <div style={{fontSize:8,color:"#aaa",fontFamily:"'Cinzel',serif",marginTop:1}}>
-            {(leg.cleanName||leg.name).split(",")[0]}</div>}
-          <div style={{fontSize:9,color:MATCHUP_COLOR[m.type],marginTop:1}}>{m.type}</div>
-          {m.notes && <div style={{fontSize:8,color:"#888",fontFamily:"'Crimson Text',serif",marginTop:2,lineHeight:1.4}}>{m.notes}</div>}
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: "#fff",
+              fontFamily: "'Cinzel',serif",
+              fontWeight: 700,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {m.deckName || "Opponent"}
+          </div>
+          {leg && (
+            <div style={{ fontSize: 8, color: "#aaa", fontFamily: "'Cinzel',serif", marginTop: 1 }}>
+              {(leg.cleanName || leg.name).split(",")[0]}
+            </div>
+          )}
+          <div style={{ fontSize: 9, color: MATCHUP_COLOR[m.type], marginTop: 1 }}>{m.type}</div>
+          {m.notes && (
+            <div style={{ fontSize: 8, color: "#888", fontFamily: "'Crimson Text',serif", marginTop: 2, lineHeight: 1.4 }}>
+              {m.notes}
+            </div>
+          )}
         </div>
       </div>
-      <div style={{padding:"7px 8px",display:"flex",flexWrap:"wrap",gap:3,alignContent:"flex-start"}}>
-        {m.out?.map((c,i)=><Badge key={i} name={c.name} count={c.count} isOut/>)}
+
+      <div style={{ padding: "7px 8px", display: "flex", flexWrap: "wrap", gap: 3, alignContent: "flex-start" }}>
+        {m.out?.map((c, i) => (
+          <Badge key={i} name={c.name} count={c.count} isOut />
+        ))}
       </div>
-      <div style={{padding:"7px 8px",display:"flex",flexWrap:"wrap",gap:3,alignContent:"flex-start",
-        borderLeft:`1px solid ${T.border||"rgba(255,255,255,0.05)"}`}}>
-        {m.in?.map((c,i)=><Badge key={i} name={c.name} count={c.count} isOut={false}/>)}
+
+      <div
+        style={{
+          padding: "7px 8px",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 3,
+          alignContent: "flex-start",
+          borderLeft: `1px solid ${T.border || "rgba(255,255,255,0.05)"}`,
+        }}
+      >
+        {m.in?.map((c, i) => (
+          <Badge key={i} name={c.name} count={c.count} isOut={false} />
+        ))}
       </div>
     </div>
   );
@@ -755,96 +1385,179 @@ function PreviewMatchupRow({ m, idx, theme }) {
 
 function GuidePreview({ deckName, author, matchups, parsed, theme }) {
   const { legend, champion, battlefields, runes } = parsed;
-  const T      = theme || {};
-  const legCard  = legend[0];
-  const cmpCard  = champion[0];
-  const bgCard   = legCard ? lookupCard(legCard.name) : null;
+  const T = theme || {};
+  const legCard = legend[0];
+  const cmpCard = champion[0];
+  const bgCard = legCard ? lookupCard(legCard.name, "Legend") : null;
 
   return (
-    <div style={{width:940,minHeight:580,position:"relative",overflow:"hidden",
-      fontFamily:"'Cinzel',serif",
-      border:`1.5px solid ${T.borderBright||"rgba(255,80,30,0.18)"}`,borderRadius:4}}>
-
-      {/* Page background = legend art */}
+    <div
+      style={{
+        width: 940,
+        minHeight: 580,
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "'Cinzel',serif",
+        border: `1.5px solid ${T.borderBright || "rgba(255,80,30,0.18)"}`,
+        borderRadius: 4,
+      }}
+    >
       {bgCard?.imageUrl && (
-        <img src={bgCard.imageUrl} alt=""
-          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
-            objectPosition:"top center",opacity:0.16,filter:"blur(2px) saturate(1.5)",transform:"scale(1.06)"}}/>
+        <img
+          src={bgCard.imageUrl}
+          alt=""
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "top center",
+            opacity: 0.16,
+            filter: "blur(2px) saturate(1.5)",
+            transform: "scale(1.06)",
+          }}
+        />
       )}
-      <div style={{position:"absolute",inset:0,
-        background:`linear-gradient(155deg,${T.bg||"rgba(7,0,0,0.91)"} 0%,rgba(8,4,4,0.86) 50%,rgba(4,4,4,0.93) 100%)`}}/>
-      {/* Themed glow spot top-left */}
-      <div style={{position:"absolute",top:-90,left:-90,width:400,height:400,borderRadius:"50%",
-        background:`radial-gradient(circle,${T.glow||"rgba(160,25,0,0.11)"},transparent 70%)`,pointerEvents:"none"}}/>
-      {/* Second glow bottom-right */}
-      <div style={{position:"absolute",bottom:-60,right:-60,width:280,height:280,borderRadius:"50%",
-        background:`radial-gradient(circle,${T.glow||"rgba(160,25,0,0.07)"},transparent 70%)`,pointerEvents:"none"}}/>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: `linear-gradient(155deg,${T.bg || "rgba(7,0,0,0.91)"} 0%,rgba(8,4,4,0.86) 50%,rgba(4,4,4,0.93) 100%)`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: -90,
+          left: -90,
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background: `radial-gradient(circle,${T.glow || "rgba(160,25,0,0.11)"},transparent 70%)`,
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: -60,
+          right: -60,
+          width: 280,
+          height: 280,
+          borderRadius: "50%",
+          background: `radial-gradient(circle,${T.glow || "rgba(160,25,0,0.07)"},transparent 70%)`,
+          pointerEvents: "none",
+        }}
+      />
 
-      <div style={{position:"relative",zIndex:1}}>
-        {/* Header */}
-        <div style={{textAlign:"center",padding:"15px 26px 5px"}}>
-          {/* Rune pip indicators */}
-          {runes.length>0 && (
-            <div style={{display:"flex",justifyContent:"center",gap:4,marginBottom:6}}>
-              {runes.map(r=>{
-                const dom=r.name.replace(/\s*rune\s*/i,"").trim();
-                const c=DOMAIN_COLORS[dom]||DOMAIN_COLORS.Colorless;
-                return Array(Math.min(r.count,12)).fill(0).map((_,i)=>(
-                  <div key={`${r.name}-${i}`} style={{
-                    width:6,height:6,borderRadius:"50%",background:c.border,
-                    boxShadow:`0 0 4px ${c.border}99`,opacity:0.8,
-                  }}/>
-                ));
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div style={{ textAlign: "center", padding: "15px 26px 5px" }}>
+          {runes.length > 0 && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 6 }}>
+              {runes.map((r) => {
+                const dom = r.name.replace(/\s*rune\s*/i, "").trim();
+                const c = DOMAIN_COLORS[dom] || DOMAIN_COLORS.Colorless;
+                return Array(Math.min(r.count, 12))
+                  .fill(0)
+                  .map((_, i) => (
+                    <div
+                      key={`${r.name}-${i}`}
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: c.border,
+                        boxShadow: `0 0 4px ${c.border}99`,
+                        opacity: 0.8,
+                      }}
+                    />
+                  ));
               })}
             </div>
           )}
-          <h1 style={{margin:"0 0 2px",fontSize:27,fontWeight:900,color:"#fff",letterSpacing:2,
-            textShadow:`0 0 28px ${T.glow||"rgba(255,100,50,0.38)"}`}}>{deckName||"Deck Name"}</h1>
-          <h2 style={{margin:0,fontSize:11,fontWeight:400,color:T.accent||"#b09070",letterSpacing:4,opacity:0.7}}>Quick Guide</h2>
+          <h1
+            style={{
+              margin: "0 0 2px",
+              fontSize: 27,
+              fontWeight: 900,
+              color: "#fff",
+              letterSpacing: 2,
+              textShadow: `0 0 28px ${T.glow || "rgba(255,100,50,0.38)"}`,
+            }}
+          >
+            {deckName || "Deck Name"}
+          </h1>
+          <h2 style={{ margin: 0, fontSize: 11, fontWeight: 400, color: T.accent || "#b09070", letterSpacing: 4, opacity: 0.7 }}>
+            Quick Guide
+          </h2>
         </div>
-        <div style={{height:1,
-          background:`linear-gradient(90deg,transparent,${T.primary||"rgba(255,100,50,0.28)"},transparent)`,
-          margin:"7px 22px"}}/>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 252px"}}>
-          {/* Sideboard table */}
-          <div style={{borderRight:`1px solid ${T.border||"rgba(255,255,255,0.05)"}`}}>
-            <div style={{padding:"7px 13px 3px"}}>
-              <span style={{fontSize:12.5,fontWeight:900,color:"#fff",letterSpacing:1}}>Sideboarding</span>
+        <div
+          style={{
+            height: 1,
+            background: `linear-gradient(90deg,transparent,${T.primary || "rgba(255,100,50,0.28)"},transparent)`,
+            margin: "7px 22px",
+          }}
+        />
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 252px" }}>
+          <div style={{ borderRight: `1px solid ${T.border || "rgba(255,255,255,0.05)"}` }}>
+            <div style={{ padding: "7px 13px 3px" }}>
+              <span style={{ fontSize: 12.5, fontWeight: 900, color: "#fff", letterSpacing: 1 }}>Sideboarding</span>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"210px 1fr 1fr",
-              borderBottom:`1px solid ${T.borderBright||"rgba(255,80,30,0.18)"}`,
-              background:T.glow}}>
-              <div/>
-              <div style={{padding:"3px 8px",fontSize:8.5,color:"#666",letterSpacing:2}}>OUT</div>
-              <div style={{padding:"3px 8px",fontSize:8.5,color:"#6effa8",letterSpacing:2,
-                borderLeft:`1px solid ${T.border||"rgba(255,255,255,0.05)"}`}}>IN</div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "210px 1fr 1fr",
+                borderBottom: `1px solid ${T.borderBright || "rgba(255,80,30,0.18)"}`,
+                background: T.glow,
+              }}
+            >
+              <div />
+              <div style={{ padding: "3px 8px", fontSize: 8.5, color: "#666", letterSpacing: 2 }}>OUT</div>
+              <div
+                style={{
+                  padding: "3px 8px",
+                  fontSize: 8.5,
+                  color: "#6effa8",
+                  letterSpacing: 2,
+                  borderLeft: `1px solid ${T.border || "rgba(255,255,255,0.05)"}`,
+                }}
+              >
+                IN
+              </div>
             </div>
-            {matchups.length===0
-              ? <div style={{padding:16,color:"#2a2a2a",fontSize:10,fontStyle:"italic"}}>No matchups added.</div>
-              : matchups.map((m,i)=><PreviewMatchupRow key={i} m={m} idx={i} theme={T}/>)
-            }
+
+            {matchups.length === 0 ? (
+              <div style={{ padding: 16, color: "#2a2a2a", fontSize: 10, fontStyle: "italic" }}>No matchups added.</div>
+            ) : (
+              matchups.map((m, i) => <PreviewMatchupRow key={i} m={m} idx={i} theme={T} />)
+            )}
           </div>
 
-          {/* Right panel */}
-          <div style={{padding:"8px 11px",display:"flex",flexDirection:"column",gap:10}}>
-            {/* Legend + Champion cards */}
-            {(legCard||cmpCard) && (
-              <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+          <div style={{ padding: "8px 11px", display: "flex", flexDirection: "column", gap: 10 }}>
+            {(legCard || cmpCard) && (
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                 {legCard && (
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                    <div style={{fontSize:7,color:T.accent||"#d4c090",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>Legend</div>
-                    <FullCard name={legCard.name} w={100} h={140}/>
-                    <div style={{fontSize:8,color:"#fff",fontWeight:700,textAlign:"center",maxWidth:100}}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                    <div style={{ fontSize: 7, color: T.accent || "#d4c090", letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>
+                      Legend
+                    </div>
+                    <FullCard name={legCard.name} wantedType="Legend" w={100} h={140} />
+                    <div style={{ fontSize: 8, color: "#fff", fontWeight: 700, textAlign: "center", maxWidth: 100 }}>
                       {legCard.name.split(",")[0]}
                     </div>
                   </div>
                 )}
+
                 {cmpCard && (
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                    <div style={{fontSize:7,color:"#b0b0d4",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>Champion</div>
-                    <FullCard name={cmpCard.name} w={100} h={140}/>
-                    <div style={{fontSize:8,color:"#fff",fontWeight:700,textAlign:"center",maxWidth:100}}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                    <div style={{ fontSize: 7, color: "#b0b0d4", letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>
+                      Champion
+                    </div>
+                    <FullCard name={cmpCard.name} wantedType="Champion" w={100} h={140} />
+                    <div style={{ fontSize: 8, color: "#fff", fontWeight: 700, textAlign: "center", maxWidth: 100 }}>
                       {cmpCard.name.split(",")[0]}
                     </div>
                   </div>
@@ -852,110 +1565,187 @@ function GuidePreview({ deckName, author, matchups, parsed, theme }) {
               </div>
             )}
 
-            {/* Battlefields */}
-            {battlefields.length>0 && (
+            {battlefields.length > 0 && (
               <div>
-                <div style={{fontSize:9.5,fontWeight:900,color:T.accent||"#fff",letterSpacing:1,marginBottom:4}}>Battlefields</div>
-                <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                  {battlefields.map((b,i)=><BfCard key={i} name={b.name} note={b.note}/>)}
+                <div style={{ fontSize: 9.5, fontWeight: 900, color: T.accent || "#fff", letterSpacing: 1, marginBottom: 4 }}>
+                  Battlefields
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {battlefields.map((b, i) => (
+                    <BfCard key={i} name={b.name} note={b.note} />
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Runes */}
-            {runes.length>0 && (
+            {runes.length > 0 && (
               <div>
-                <div style={{fontSize:9.5,fontWeight:900,color:T.accent||"#fff",letterSpacing:1,marginBottom:4}}>Runes</div>
-                {runes.map((r,i)=><RuneRow key={i} name={r.name} count={r.count}/>)}
+                <div style={{ fontSize: 9.5, fontWeight: 900, color: T.accent || "#fff", letterSpacing: 1, marginBottom: 4 }}>
+                  Runes
+                </div>
+                {runes.map((r, i) => (
+                  <RuneRow key={i} name={r.name} count={r.count} />
+                ))}
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer */}
-        <div style={{borderTop:`1px solid ${T.border||"rgba(255,80,30,0.1)"}`,padding:"7px 22px",
-          display:"flex",justifyContent:"space-between",alignItems:"center",
-          background:T.glow}}>
-          {author && <div style={{fontSize:8,color:T.accent||"#555",opacity:0.7}}>{author}</div>}
+        <div
+          style={{
+            borderTop: `1px solid ${T.border || "rgba(255,80,30,0.1)"}`,
+            padding: "7px 22px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            background: T.glow,
+          }}
+        >
+          {author && <div style={{ fontSize: 8, color: T.accent || "#555", opacity: 0.7 }}>{author}</div>}
         </div>
       </div>
     </div>
   );
 }
 
-// ── DECK PREVIEW (build tab) ───────────────────────────────────────────────
+// ── DECK PREVIEW ───────────────────────────────────────────────────────────
 function DeckPreview({ parsed, theme }) {
   const { legend, champion, mainDeck, battlefields, runes, sideboard } = parsed;
-  const T  = theme || {};
+  const T = theme || {};
   const ac = T.accent || "#c4a870";
-  const SL = { fontSize:9, marginBottom:6, fontFamily:"'Cinzel',serif", textTransform:"uppercase",
-    letterSpacing:2, fontWeight:700 };
+  const SL = {
+    fontSize: 9,
+    marginBottom: 6,
+    fontFamily: "'Cinzel',serif",
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    fontWeight: 700,
+  };
 
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      {legend.length>0 && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {legend.length > 0 && (
         <div>
-          <div style={{...SL, color: ac}}>Legend</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {legend.map((c,i)=>(
-              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <Thumb name={c.name} w={54} h={76} border={`1px solid ${T.borderBright||"rgba(255,120,60,0.3)"}`}/>
-                <div style={{fontSize:7.5,color:"#888",fontFamily:"'Cinzel',serif",textAlign:"center",maxWidth:64,lineHeight:1.2}}>{c.name.split(",")[0].slice(0,12)}</div>
+          <div style={{ ...SL, color: ac }}>Legend</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {legend.map((c, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <Thumb name={c.name} wantedType="Legend" w={54} h={76} border={`1px solid ${T.borderBright || "rgba(255,120,60,0.3)"}`} />
+                <div
+                  style={{
+                    fontSize: 7.5,
+                    color: "#888",
+                    fontFamily: "'Cinzel',serif",
+                    textAlign: "center",
+                    maxWidth: 64,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {c.name.split(",")[0].slice(0, 12)}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
-      {champion.length>0 && (
+
+      {champion.length > 0 && (
         <div>
-          <div style={{...SL, color:"#b0b0d4"}}>Champion</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {champion.map((c,i)=>(
-              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <Thumb name={c.name} w={54} h={76} border={`1px solid ${T.borderBright||"rgba(255,120,60,0.3)"}`}/>
-                <div style={{fontSize:7.5,color:"#888",fontFamily:"'Cinzel',serif",textAlign:"center",maxWidth:64,lineHeight:1.2}}>{c.name.split(",")[0].slice(0,12)}</div>
+          <div style={{ ...SL, color: "#b0b0d4" }}>Champion</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {champion.map((c, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <Thumb
+                  name={c.name}
+                  wantedType="Champion"
+                  w={54}
+                  h={76}
+                  border={`1px solid ${T.borderBright || "rgba(255,120,60,0.3)"}`}
+                />
+                <div
+                  style={{
+                    fontSize: 7.5,
+                    color: "#888",
+                    fontFamily: "'Cinzel',serif",
+                    textAlign: "center",
+                    maxWidth: 64,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {c.name.split(",")[0].slice(0, 12)}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
-      {mainDeck.length>0 && (
+
+      {mainDeck.length > 0 && (
         <div>
-          <div style={{...SL, color:"#aaa"}}>Main Deck ({mainDeck.reduce((s,c)=>s+c.count,0)} cards)</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {mainDeck.map((c,i)=>(
-              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                <Thumb name={c.name} w={40} h={56} border={`1px solid ${T.border||"rgba(255,120,60,0.2)"}`}/>
-                <div style={{fontSize:7,color:"#666",fontFamily:"'Cinzel',serif",textAlign:"center",maxWidth:50,lineHeight:1.2}}>{c.name.split(",")[0].slice(0,10)}</div>
-                <div style={{fontSize:8,color:ac,fontFamily:"'Cinzel',serif",fontWeight:700}}>×{c.count}</div>
+          <div style={{ ...SL, color: "#aaa" }}>Main Deck ({mainDeck.reduce((s, c) => s + c.count, 0)} cards)</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {mainDeck.map((c, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                <Thumb name={c.name} w={40} h={56} border={`1px solid ${T.border || "rgba(255,120,60,0.2)"}`} />
+                <div
+                  style={{
+                    fontSize: 7,
+                    color: "#666",
+                    fontFamily: "'Cinzel',serif",
+                    textAlign: "center",
+                    maxWidth: 50,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {c.name.split(",")[0].slice(0, 10)}
+                </div>
+                <div style={{ fontSize: 8, color: ac, fontFamily: "'Cinzel',serif", fontWeight: 700 }}>×{c.count}</div>
               </div>
             ))}
           </div>
         </div>
       )}
-      {battlefields.length>0 && (
+
+      {battlefields.length > 0 && (
         <div>
-          <div style={{...SL, color:"#c08040"}}>Battlefields</div>
-          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-            {battlefields.map((b,i)=><BfCard key={i} name={b.name} note={b.note}/>)}
+          <div style={{ ...SL, color: "#c08040" }}>Battlefields</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {battlefields.map((b, i) => (
+              <BfCard key={i} name={b.name} note={b.note} />
+            ))}
           </div>
         </div>
       )}
-      {runes.length>0 && (
+
+      {runes.length > 0 && (
         <div>
-          <div style={{...SL, color: ac}}>Runes</div>
-          {runes.map((r,i)=><RuneRow key={i} name={r.name} count={r.count}/>)}
+          <div style={{ ...SL, color: ac }}>Runes</div>
+          {runes.map((r, i) => (
+            <RuneRow key={i} name={r.name} count={r.count} />
+          ))}
         </div>
       )}
-      {sideboard.length>0 && (
+
+      {sideboard.length > 0 && (
         <div>
-          <div style={{...SL, color:"#6effa8"}}>Sideboard ({sideboard.reduce((s,c)=>s+c.count,0)} cards)</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {sideboard.map((c,i)=>(
-              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                <Thumb name={c.name} w={40} h={56} border={`1px solid ${T.border||"rgba(100,255,160,0.2)"}`}/>
-                <div style={{fontSize:7,color:"#666",fontFamily:"'Cinzel',serif",textAlign:"center",maxWidth:50,lineHeight:1.2}}>{c.name.split(",")[0].slice(0,10)}</div>
-                <div style={{fontSize:8,color:"#6effa8",fontFamily:"'Cinzel',serif",fontWeight:700}}>×{c.count}</div>
+          <div style={{ ...SL, color: "#6effa8" }}>Sideboard ({sideboard.reduce((s, c) => s + c.count, 0)} cards)</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {sideboard.map((c, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                <Thumb name={c.name} w={40} h={56} border={`1px solid ${T.border || "rgba(100,255,160,0.2)"}`} />
+                <div
+                  style={{
+                    fontSize: 7,
+                    color: "#666",
+                    fontFamily: "'Cinzel',serif",
+                    textAlign: "center",
+                    maxWidth: 50,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {c.name.split(",")[0].slice(0, 10)}
+                </div>
+                <div style={{ fontSize: 8, color: "#6effa8", fontFamily: "'Cinzel',serif", fontWeight: 700 }}>×{c.count}</div>
               </div>
             ))}
           </div>
@@ -966,18 +1756,63 @@ function DeckPreview({ parsed, theme }) {
 }
 
 // ── SHARED STYLES ──────────────────────────────────────────────────────────
-const LS = { display:"block",fontSize:9,color:"#888",marginBottom:4,fontFamily:"'Cinzel',serif",textTransform:"uppercase",letterSpacing:1.5 };
-const IS = { width:"100%",background:"rgba(255,255,255,0.045)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:7,padding:"7px 11px",color:"#fff",fontSize:12,fontFamily:"'Cinzel',serif",outline:"none",boxSizing:"border-box" };
-const BS = { padding:"7px 16px",borderRadius:7,cursor:"pointer",color:"#fff",fontSize:11,fontFamily:"'Cinzel',serif",fontWeight:700,border:"none" };
+const LS = {
+  display: "block",
+  fontSize: 9,
+  color: "#888",
+  marginBottom: 4,
+  fontFamily: "'Cinzel',serif",
+  textTransform: "uppercase",
+  letterSpacing: 1.5,
+};
+const IS = {
+  width: "100%",
+  background: "rgba(255,255,255,0.045)",
+  border: "1px solid rgba(255,255,255,0.09)",
+  borderRadius: 7,
+  padding: "7px 11px",
+  color: "#fff",
+  fontSize: 12,
+  fontFamily: "'Cinzel',serif",
+  outline: "none",
+  boxSizing: "border-box",
+};
+const BS = {
+  padding: "7px 16px",
+  borderRadius: 7,
+  cursor: "pointer",
+  color: "#fff",
+  fontSize: 11,
+  fontFamily: "'Cinzel',serif",
+  fontWeight: 700,
+  border: "none",
+};
 
 function Box({ title, children, theme }) {
   const T = theme || {};
   return (
-    <div style={{ background: T.bgPanel || "rgba(13,2,2,0.88)",
-      border:`1px solid ${T.border || "rgba(255,80,30,0.1)"}`,
-      borderRadius:11, padding:14 }}>
-      {title && <h3 style={{ margin:"0 0 11px", fontSize:8.5, fontWeight:900,
-        color: T.accent || "#c4a870", letterSpacing:2.5, textTransform:"uppercase" }}>{title}</h3>}
+    <div
+      style={{
+        background: T.bgPanel || "rgba(13,2,2,0.88)",
+        border: `1px solid ${T.border || "rgba(255,80,30,0.1)"}`,
+        borderRadius: 11,
+        padding: 14,
+      }}
+    >
+      {title && (
+        <h3
+          style={{
+            margin: "0 0 11px",
+            fontSize: 8.5,
+            fontWeight: 900,
+            color: T.accent || "#c4a870",
+            letterSpacing: 2.5,
+            textTransform: "uppercase",
+          }}
+        >
+          {title}
+        </h3>
+      )}
       {children}
     </div>
   );
@@ -1023,37 +1858,29 @@ Sideboard:
 // ── MAIN APP ───────────────────────────────────────────────────────────────
 export default function App() {
   const { ready, error, cardCount, legendCount } = useCardStore();
-  const [tab,        setTab]        = useState("build");
-  const [deckName,   setDeckName]   = useState("Nick's Draven");
-  const [author,     setAuthor]     = useState("Nick");
-  const [deckText,   setDeckText]   = useState(SAMPLE);
-  const [matchups,   setMatchups]   = useState([]);
-  const [editing,    setEditing]    = useState(null);
-  const [panel,      setPanel]      = useState("deck"); // "deck" | "matchups"
+  const [tab, setTab] = useState("build");
+  const [deckName, setDeckName] = useState("Nick's Draven");
+  const [author, setAuthor] = useState("Nick");
+  const [deckText, setDeckText] = useState(SAMPLE);
+  const [matchups, setMatchups] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [panel, setPanel] = useState("deck");
 
   const parsed = useMemo(() => parseDecklist(deckText), [deckText]);
-
-  // Derive theme from the rune composition in the decklist
   const theme = useMemo(() => deriveTheme(parsed.runes), [parsed.runes]);
 
-  const saveMatchup = d => {
-    if (editing === "new") setMatchups(m => [...m, d]);
-    else setMatchups(m => m.map((x,i) => i === editing ? d : x));
+  const saveMatchup = (d) => {
+    if (editing === "new") setMatchups((m) => [...m, d]);
+    else setMatchups((m) => m.map((x, i) => (i === editing ? d : x)));
     setEditing(null);
   };
 
   const statusColor = error ? "#ff8888" : !ready ? "#ffd97b" : "#6effa8";
-  const statusBg    = error ? "rgba(220,60,60,0.15)" : !ready ? "rgba(255,200,80,0.1)" : "rgba(60,200,120,0.1)";
-  const statusText  = error ? "⚠ run: node server.js"
-    : !ready ? "⏳ Loading cards..."
-    : `✓ ${cardCount} cards · ${legendCount} legends`;
-
-  // Themed dynamic styles
-  const themedBtn = { ...BS, background: theme.gradient, border:`1px solid ${theme.borderBright}` };
-  const themedBtnPassive = { ...BS, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)" };
+  const statusBg = error ? "rgba(220,60,60,0.15)" : !ready ? "rgba(255,200,80,0.1)" : "rgba(60,200,120,0.1)";
+  const statusText = error ? "⚠ run: node server.js" : !ready ? "⏳ Loading cards..." : `✓ ${cardCount} keys · ${legendCount} legends`;
 
   return (
-    <div style={{ minHeight:"100vh", background:theme.bg, color:"#fff", fontFamily:"'Cinzel',serif" }}>
+    <div style={{ minHeight: "100vh", background: theme.bg, color: "#fff", fontFamily: "'Cinzel',serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
         *{box-sizing:border-box}
@@ -1066,24 +1893,38 @@ export default function App() {
         @keyframes spin{to{transform:rotate(360deg)}}
       `}</style>
 
-      {/* TOP BAR */}
-      <div style={{ background:theme.topbar, borderBottom:`1px solid ${theme.border}`,
-        padding:"10px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontWeight:900, fontSize:14, letterSpacing:3, color:"#d4c090" }}>⚔️ RIFTBOUND GUIDE BUILDER</div>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          {/* Rune theme indicator */}
+      <div
+        style={{
+          background: theme.topbar,
+          borderBottom: `1px solid ${theme.border}`,
+          padding: "10px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ fontWeight: 900, fontSize: 14, letterSpacing: 3, color: "#d4c090" }}>⚔️ RIFTBOUND GUIDE BUILDER</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {parsed.runes.length > 0 && (
-            <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-              {parsed.runes.map(r => {
-                const domain = r.name.replace(/\s*rune\s*/i,"").trim();
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              {parsed.runes.map((r) => {
+                const domain = r.name.replace(/\s*rune\s*/i, "").trim();
                 const c = DOMAIN_COLORS[domain] || DOMAIN_COLORS.Colorless;
                 return (
-                  <div key={r.name} style={{ display:"flex", alignItems:"center", gap:3,
-                    background:`${c.bg}cc`, border:`1px solid ${c.border}55`,
-                    borderRadius:12, padding:"2px 7px" }}>
-                    <div style={{ width:8, height:8, borderRadius:"50%", background:c.border,
-                      boxShadow:`0 0 4px ${c.border}` }}/>
-                    <span style={{ fontSize:8.5, color:c.text, fontFamily:"'Cinzel',serif" }}>
+                  <div
+                    key={r.name}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 3,
+                      background: `${c.bg}cc`,
+                      border: `1px solid ${c.border}55`,
+                      borderRadius: 12,
+                      padding: "2px 7px",
+                    }}
+                  >
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.border, boxShadow: `0 0 4px ${c.border}` }} />
+                    <span style={{ fontSize: 8.5, color: c.text, fontFamily: "'Cinzel',serif" }}>
                       {r.count} {domain}
                     </span>
                   </div>
@@ -1091,129 +1932,216 @@ export default function App() {
               })}
             </div>
           )}
-          <span style={{ fontSize:9, letterSpacing:1, padding:"3px 10px", borderRadius:20,
-            background:statusBg, border:`1px solid ${statusColor}44`, color:statusColor }}>
+
+          <span
+            style={{
+              fontSize: 9,
+              letterSpacing: 1,
+              padding: "3px 10px",
+              borderRadius: 20,
+              background: statusBg,
+              border: `1px solid ${statusColor}44`,
+              color: statusColor,
+            }}
+          >
             {statusText}
           </span>
-          <div style={{ display:"flex", gap:6 }}>
-            {["build","preview"].map(t=>(
-              <button key={t} onClick={()=>setTab(t)} style={{
-                ...BS,
-                background: tab===t ? theme.gradient : "rgba(255,255,255,0.04)",
-                border: `1px solid ${tab===t ? theme.borderBright : "rgba(255,255,255,0.08)"}`,
-                textTransform:"capitalize", letterSpacing:1,
-              }}>{t}</button>
+
+          <div style={{ display: "flex", gap: 6 }}>
+            {["build", "preview"].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                style={{
+                  ...BS,
+                  background: tab === t ? theme.gradient : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${tab === t ? theme.borderBright : "rgba(255,255,255,0.08)"}`,
+                  textTransform: "capitalize",
+                  letterSpacing: 1,
+                }}
+              >
+                {t}
+              </button>
             ))}
           </div>
         </div>
       </div>
 
       {error && (
-        <div style={{ background:`${theme.glow}`, borderBottom:`1px solid ${theme.border}`,
-          padding:"7px 24px", fontSize:11, color:"#ffb080", fontFamily:"'Courier New',monospace" }}>
+        <div
+          style={{
+            background: `${theme.glow}`,
+            borderBottom: `1px solid ${theme.border}`,
+            padding: "7px 24px",
+            fontSize: 11,
+            color: "#ffb080",
+            fontFamily: "'Courier New',monospace",
+          }}
+        >
           Start the proxy: <strong>npm install</strong> then <strong>node server.js</strong>
         </div>
       )}
 
-      <div style={{ maxWidth:1400, margin:"0 auto", padding:"14px 16px" }}>
-        {tab==="build" && (
-          <div style={{ display:"grid", gridTemplateColumns:"305px 1fr", gap:16 }}>
-            {/* LEFT */}
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "14px 16px" }}>
+        {tab === "build" && (
+          <div style={{ display: "grid", gridTemplateColumns: "305px 1fr", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <Box title="Guide Info" theme={theme}>
-                <div style={{ marginBottom:10 }}>
+                <div style={{ marginBottom: 10 }}>
                   <label style={LS}>Deck Name</label>
-                  <input value={deckName} onChange={e=>setDeckName(e.target.value)}
+                  <input
+                    value={deckName}
+                    onChange={(e) => setDeckName(e.target.value)}
                     placeholder="e.g. Classic Draven"
-                    style={{...IS, borderColor: theme.border}}/>
+                    style={{ ...IS, borderColor: theme.border }}
+                  />
                 </div>
                 <div>
                   <label style={LS}>Author</label>
-                  <input value={author} onChange={e=>setAuthor(e.target.value)}
+                  <input
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
                     placeholder="e.g. Nick's Deck"
-                    style={{...IS, borderColor: theme.border}}/>
+                    style={{ ...IS, borderColor: theme.border }}
+                  />
                 </div>
               </Box>
 
               <Box title="Decklist" theme={theme}>
-                <div style={{ fontSize:8.5, color:"#555", marginBottom:8, lineHeight:1.8 }}>
-                  <span style={{color:"#d4c090"}}>Legend:</span>{" · "}
-                  <span style={{color:"#b0b0d4"}}>Champion:</span>{" · "}
-                  <span style={{color:"#aaa"}}>MainDeck:</span><br/>
-                  <span style={{color:"#c08040"}}>Battlefields:</span>{" · "}
-                  <span style={{color:"#a080c0"}}>Runes:</span>{" · "}
-                  <span style={{color:"#6effa8"}}>Sideboard:</span>
+                <div style={{ fontSize: 8.5, color: "#555", marginBottom: 8, lineHeight: 1.8 }}>
+                  <span style={{ color: "#d4c090" }}>Legend:</span>{" · "}
+                  <span style={{ color: "#b0b0d4" }}>Champion:</span>{" · "}
+                  <span style={{ color: "#aaa" }}>MainDeck:</span>
+                  <br />
+                  <span style={{ color: "#c08040" }}>Battlefields:</span>{" · "}
+                  <span style={{ color: "#a080c0" }}>Runes:</span>{" · "}
+                  <span style={{ color: "#6effa8" }}>Sideboard:</span>
                 </div>
-                <textarea value={deckText} onChange={e=>setDeckText(e.target.value)} rows={30}
-                  style={{...IS, resize:"vertical", fontFamily:"'Courier New',monospace",
-                    fontSize:11, lineHeight:1.85, borderColor: theme.border }}/>
+                <textarea
+                  value={deckText}
+                  onChange={(e) => setDeckText(e.target.value)}
+                  rows={30}
+                  style={{
+                    ...IS,
+                    resize: "vertical",
+                    fontFamily: "'Courier New',monospace",
+                    fontSize: 11,
+                    lineHeight: 1.85,
+                    borderColor: theme.border,
+                  }}
+                />
               </Box>
             </div>
 
-            {/* RIGHT */}
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              <div style={{ display:"flex", gap:6 }}>
-                {[["deck","Deck Preview"],["matchups","Sideboard Matchups"]].map(([k,lbl])=>(
-                  <button key={k} onClick={()=>setPanel(k)} style={{ ...BS, fontSize:10,
-                    background: panel===k ? theme.gradient : "rgba(255,255,255,0.04)",
-                    border:`1px solid ${panel===k ? theme.borderBright : "rgba(255,255,255,0.08)"}`,
-                  }}>{lbl}</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[
+                  ["deck", "Deck Preview"],
+                  ["matchups", "Sideboard Matchups"],
+                ].map(([k, lbl]) => (
+                  <button
+                    key={k}
+                    onClick={() => setPanel(k)}
+                    style={{
+                      ...BS,
+                      fontSize: 10,
+                      background: panel === k ? theme.gradient : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${panel === k ? theme.borderBright : "rgba(255,255,255,0.08)"}`,
+                    }}
+                  >
+                    {lbl}
+                  </button>
                 ))}
               </div>
 
-              {panel==="deck" && (
+              {panel === "deck" && (
                 <Box theme={theme}>
-                  <DeckPreview parsed={parsed} theme={theme}/>
+                  <DeckPreview parsed={parsed} theme={theme} />
                 </Box>
               )}
 
-              {panel==="matchups" && (
+              {panel === "matchups" && (
                 <div>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                    <h2 style={{ margin:0, fontSize:14, fontWeight:900, letterSpacing:2, color:"#fff" }}>Sideboard Matchups</h2>
-                    {editing===null && (
-                      <button onClick={()=>setEditing("new")} style={{ ...BS,
-                        background: theme.gradient,
-                        border:`1px solid ${theme.borderBright}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <h2 style={{ margin: 0, fontSize: 14, fontWeight: 900, letterSpacing: 2, color: "#fff" }}>Sideboard Matchups</h2>
+                    {editing === null && (
+                      <button
+                        onClick={() => setEditing("new")}
+                        style={{ ...BS, background: theme.gradient, border: `1px solid ${theme.borderBright}` }}
+                      >
                         + Add Matchup
                       </button>
                     )}
                   </div>
 
-                  {(editing==="new"||typeof editing==="number") && (
+                  {(editing === "new" || typeof editing === "number") && (
                     <MatchupEditor
                       mainDeck={parsed.mainDeck}
                       sideboard={parsed.sideboard}
                       onSave={saveMatchup}
-                      onCancel={()=>setEditing(null)}
-                      initial={typeof editing==="number"?matchups[editing]:null}
+                      onCancel={() => setEditing(null)}
+                      initial={typeof editing === "number" ? matchups[editing] : null}
                       theme={theme}
                     />
                   )}
 
-                  {matchups.length===0&&editing===null ? (
-                    <div style={{ background:"rgba(255,255,255,0.012)",
-                      border:`1px dashed ${theme.border}`,
-                      borderRadius:11, padding:40, textAlign:"center", color:"#2a2a2a" }}>
-                      <div style={{ fontSize:26, marginBottom:8 }}>⚔️</div>
-                      <div style={{ fontFamily:"'Cinzel',serif", fontSize:11, letterSpacing:1 }}>Add your first matchup to get started</div>
-                    </div>
-                  ) : matchups.length>0 ? (
-                    <div style={{ background:theme.bgPanel,
-                      border:`1px solid ${theme.border}`,
-                      borderRadius:11, overflow:"hidden" }}>
-                      <div style={{ display:"grid", gridTemplateColumns:"220px 1fr 1fr",
-                        borderBottom:`1px solid ${theme.borderBright}`,
-                        background: `${theme.glow}` }}>
-                        <div style={{ padding:"6px 11px", fontSize:8.5, color:theme.accent, letterSpacing:2 }}>MATCHUP</div>
-                        <div style={{ padding:"6px 11px", fontSize:8.5, color:"#888", letterSpacing:2 }}>OUT</div>
-                        <div style={{ padding:"6px 11px", fontSize:8.5, color:"#6effa8", letterSpacing:2,
-                          borderLeft:`1px solid ${theme.border}` }}>IN</div>
+                  {matchups.length === 0 && editing === null ? (
+                    <div
+                      style={{
+                        background: "rgba(255,255,255,0.012)",
+                        border: `1px dashed ${theme.border}`,
+                        borderRadius: 11,
+                        padding: 40,
+                        textAlign: "center",
+                        color: "#2a2a2a",
+                      }}
+                    >
+                      <div style={{ fontSize: 26, marginBottom: 8 }}>⚔️</div>
+                      <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: 1 }}>
+                        Add your first matchup to get started
                       </div>
-                      {matchups.map((m,i)=>(
-                        <MatchupRow key={i} m={m} idx={i} theme={theme}
+                    </div>
+                  ) : matchups.length > 0 ? (
+                    <div
+                      style={{
+                        background: theme.bgPanel,
+                        border: `1px solid ${theme.border}`,
+                        borderRadius: 11,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "220px 1fr 1fr",
+                          borderBottom: `1px solid ${theme.borderBright}`,
+                          background: `${theme.glow}`,
+                        }}
+                      >
+                        <div style={{ padding: "6px 11px", fontSize: 8.5, color: theme.accent, letterSpacing: 2 }}>MATCHUP</div>
+                        <div style={{ padding: "6px 11px", fontSize: 8.5, color: "#888", letterSpacing: 2 }}>OUT</div>
+                        <div
+                          style={{
+                            padding: "6px 11px",
+                            fontSize: 8.5,
+                            color: "#6effa8",
+                            letterSpacing: 2,
+                            borderLeft: `1px solid ${theme.border}`,
+                          }}
+                        >
+                          IN
+                        </div>
+                      </div>
+
+                      {matchups.map((m, i) => (
+                        <MatchupRow
+                          key={i}
+                          m={m}
+                          idx={i}
+                          theme={theme}
                           onEdit={setEditing}
-                          onDelete={idx=>setMatchups(ms=>ms.filter((_,j)=>j!==idx))}/>
+                          onDelete={(idx) => setMatchups((ms) => ms.filter((_, j) => j !== idx))}
+                        />
                       ))}
                     </div>
                   ) : null}
@@ -1223,15 +2151,24 @@ export default function App() {
           </div>
         )}
 
-        {tab==="preview" && (
+        {tab === "preview" && (
           <div>
-            <div style={{ marginBottom:12, padding:"7px 13px", background:theme.glow,
-              border:`1px solid ${theme.border}`, borderRadius:7, fontSize:10,
-              color: theme.accent, display:"inline-block" }}>
-              💡 <strong style={{ color:"#fff" }}>Ctrl/Cmd+P → Save as PDF</strong> to export
+            <div
+              style={{
+                marginBottom: 12,
+                padding: "7px 13px",
+                background: theme.glow,
+                border: `1px solid ${theme.border}`,
+                borderRadius: 7,
+                fontSize: 10,
+                color: theme.accent,
+                display: "inline-block",
+              }}
+            >
+              💡 <strong style={{ color: "#fff" }}>Ctrl/Cmd+P → Save as PDF</strong> to export
             </div>
-            <div style={{ overflowX:"auto", paddingBottom:20 }}>
-              <GuidePreview deckName={deckName} author={author} matchups={matchups} parsed={parsed} theme={theme}/>
+            <div style={{ overflowX: "auto", paddingBottom: 20 }}>
+              <GuidePreview deckName={deckName} author={author} matchups={matchups} parsed={parsed} theme={theme} />
             </div>
           </div>
         )}
