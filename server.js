@@ -153,6 +153,28 @@ app.get("/api/debug", async (req, res) => {
   }
 });
 
+app.get("/api/image", async (req, res) => {
+  try {
+    const url = req.query.url;
+    if (!url) return res.status(400).send("Missing url");
+
+    if (!_fetch) _fetch = (await import("node-fetch")).default;
+
+    const r = await _fetch(url);
+    if (!r.ok) return res.status(500).send("Failed to fetch image");
+
+    const buffer = Buffer.from(await r.arrayBuffer());
+
+    res.setHeader("Content-Type", r.headers.get("content-type") || "image/jpeg");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    res.send(buffer);
+  } catch (err) {
+    console.error("[image proxy]", err);
+    res.status(500).send("Image proxy error");
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`\n⚔️  Riftbound Proxy  →  http://localhost:${PORT}`);
   console.log(`   Cards:   http://localhost:${PORT}/api/cards`);

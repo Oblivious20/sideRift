@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { toPng } from "html-to-image";
 
 const PROXY_BASE = "http://localhost:3001";
 
@@ -44,65 +45,66 @@ function deriveTheme(runes) {
       glow: "rgba(180,30,0,0.12)",
       gradient: "linear-gradient(135deg,#8b0000,#c0392b)",
       topbar: "linear-gradient(90deg,#070000,#120303,#070000)",
+      backgroundGradient: "linear-gradient(135deg,#070000,#120303,#070000)",
       scrollThumb: "#280000",
     };
   }
 
-  const total = runes.reduce((s, r) => s + r.count, 0);
-  const domains = runes.map((r) => ({
-    domain: r.name.replace(/\s*rune\s*/i, "").trim(),
-    weight: r.count / total,
-  }));
+  const expandedDomains = runes.flatMap((r) => {
+    const domain = r.name.replace(/\s*rune\s*/i, "").trim();
+    return Array(Math.max(1, r.count)).fill(domain);
+  });
 
-  let pr = 0,
-    pg = 0,
-    pb = 0,
-    dr = 0,
-    dg = 0,
-    db = 0;
-  for (const { domain, weight } of domains) {
-    const raw = DOMAIN_RAW[domain] || DOMAIN_RAW.Colorless;
-    pr += raw.r * weight;
-    pg += raw.g * weight;
-    pb += raw.b * weight;
-    dr += raw.dark.r * weight;
-    dg += raw.dark.g * weight;
-    db += raw.dark.b * weight;
-  }
+  const uniqueDomains = [...new Set(expandedDomains)];
+  const firstDomain = uniqueDomains[0] || "Colorless";
+  const secondDomain = uniqueDomains[1] || firstDomain;
+
+  const first = DOMAIN_RAW[firstDomain] || DOMAIN_RAW.Colorless;
+  const second = DOMAIN_RAW[secondDomain] || DOMAIN_RAW.Colorless;
 
   const toHex = (r, g, b) =>
     `#${[r, g, b]
       .map((v) => Math.round(v).toString(16).padStart(2, "0"))
       .join("")}`;
 
-  const primary = toHex(pr, pg, pb);
-  const darkBg = toHex(Math.max(4, dr * 0.35), Math.max(0, dg * 0.35), Math.max(0, db * 0.35));
-  const midBg = toHex(Math.max(7, dr * 0.55), Math.max(0, dg * 0.55), Math.max(0, db * 0.55));
-  const panelBg = `rgba(${Math.round(dr * 0.6)},${Math.round(dg * 0.6)},${Math.round(db * 0.6)},0.88)`;
-  const border = `rgba(${Math.round(pr)},${Math.round(pg)},${Math.round(pb)},0.28)`;
-  const borderBrt = `rgba(${Math.round(Math.min(255, pr * 1.3))},${Math.round(
-    Math.min(255, pg * 1.3)
-  )},${Math.round(Math.min(255, pb * 1.3))},0.5)`;
-  const glowRgba = `rgba(${Math.round(pr * 0.7)},${Math.round(pg * 0.7)},${Math.round(pb * 0.7)},0.13)`;
-  const accent = toHex(Math.min(255, pr * 1.4), Math.min(255, pg * 1.4), Math.min(255, pb * 1.4));
+  const primary = toHex(first.r, first.g, first.b);
+  const secondary = toHex(second.r, second.g, second.b);
 
-  const g1 = toHex(Math.max(0, pr * 0.45), Math.max(0, pg * 0.45), Math.max(0, pb * 0.45));
-  const topL = toHex(Math.max(0, pr * 0.08), Math.max(0, pg * 0.08), Math.max(0, pb * 0.08));
-  const topM = toHex(Math.max(0, pr * 0.14), Math.max(0, pg * 0.14), Math.max(0, pb * 0.14));
+  const dark1 = toHex(first.dark.r, first.dark.g, first.dark.b);
+  const dark2 = toHex(second.dark.r, second.dark.g, second.dark.b);
+
+  const accent = toHex(
+    Math.min(255, (first.r + second.r) / 2 * 1.25),
+    Math.min(255, (first.g + second.g) / 2 * 1.25),
+    Math.min(255, (first.b + second.b) / 2 * 1.25)
+  );
+
+  const border = `rgba(${Math.round((first.r + second.r) / 2)},${Math.round((first.g + second.g) / 2)},${Math.round(
+    (first.b + second.b) / 2
+  )},0.28)`;
+
+  const borderBright = `rgba(${Math.round((first.r + second.r) / 2)},${Math.round((first.g + second.g) / 2)},${Math.round(
+    (first.b + second.b) / 2
+  )},0.5)`;
+
+  const glow = `rgba(${Math.round((first.r + second.r) / 2)},${Math.round((first.g + second.g) / 2)},${Math.round(
+    (first.b + second.b) / 2
+  )},0.13)`;
 
   return {
     primary,
-    secondary: g1,
+    secondary,
     accent,
-    bg: darkBg,
-    bgCard: midBg,
-    bgPanel: panelBg,
+    bg: dark1,
+    bgCard: dark2,
+    bgPanel: `linear-gradient(145deg, rgba(${first.dark.r},${first.dark.g},${first.dark.b},0.9), rgba(${second.dark.r},${second.dark.g},${second.dark.b},0.9))`,
     border,
-    borderBright: borderBrt,
-    glow: glowRgba,
-    gradient: `linear-gradient(135deg,${g1},${primary})`,
-    topbar: `linear-gradient(90deg,${topL},${topM},${topL})`,
-    scrollThumb: toHex(Math.max(0, dr * 0.8), Math.max(0, dg * 0.8), Math.max(0, db * 0.8)),
+    borderBright,
+    glow,
+    gradient: `linear-gradient(135deg, ${primary}, ${secondary})`,
+    topbar: `linear-gradient(90deg, ${dark1}, ${dark2}, ${dark1})`,
+    backgroundGradient: `linear-gradient(135deg, ${dark1}, ${dark2})`,
+    scrollThumb: primary,
   };
 }
 
@@ -292,7 +294,7 @@ function Thumb({
     >
       {card?.imageUrl && !fail ? (
         <img
-          src={card.imageUrl}
+          src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(card.imageUrl)}`}
           alt={name}
           onError={() => setFail(true)}
           style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}
@@ -332,7 +334,7 @@ function FullCard({ name, wantedType = null, w = 120, h = 168 }) {
     >
       {card?.imageUrl && !fail ? (
         <img
-          src={card.imageUrl}
+          src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(card.imageUrl)}`}
           alt={name}
           onError={() => setFail(true)}
           style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}
@@ -376,7 +378,7 @@ function BfCard({ name, note }) {
     >
       {card?.imageUrl && !fail && (
         <img
-          src={card.imageUrl}
+          src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(card.imageUrl)}`}
           alt={name}
           onError={() => setFail(true)}
           style={{
@@ -459,7 +461,7 @@ function Badge({ name, count, isOut }) {
     >
       {card?.imageUrl && !fail ? (
         <img
-          src={card.imageUrl}
+          src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(card.imageUrl)}`}
           alt={name}
           onError={() => setFail(true)}
           style={{ width: 16, height: 22, objectFit: "cover", objectPosition: "top", borderRadius: 2, flexShrink: 0 }}
@@ -597,7 +599,7 @@ function LegendDropdown({ value, onChange, placeholder = "Select legend..." }) {
             >
               {selected.imageUrl ? (
                 <img
-                  src={selected.imageUrl}
+                  src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(selected.imageUrl)}`}
                   alt={selected.name}
                   style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
                 />
@@ -748,7 +750,7 @@ function LegendDropdown({ value, onChange, placeholder = "Select legend..." }) {
                   >
                     {leg.imageUrl ? (
                       <img
-                        src={leg.imageUrl}
+                        src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(leg.imageUrl)}`}
                         alt={leg.name}
                         style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
                       />
@@ -1177,7 +1179,7 @@ function MatchupRow({ m, idx, onEdit, onDelete, theme }) {
         >
           {leg?.imageUrl && !fail ? (
             <img
-              src={leg.imageUrl}
+              src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(leg.imageUrl)}`}
               alt=""
               onError={() => setFail(true)}
               style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
@@ -1308,7 +1310,7 @@ function PreviewMatchupRow({ m, idx, theme }) {
         >
           {leg?.imageUrl && !fail ? (
             <img
-              src={leg.imageUrl}
+              src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(leg.imageUrl)}`}
               alt=""
               onError={() => setFail(true)}
               style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
@@ -1404,7 +1406,7 @@ function GuidePreview({ deckName, author, matchups, parsed, theme }) {
     >
       {bgCard?.imageUrl && (
         <img
-          src={bgCard.imageUrl}
+          src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(bgCard.imageUrl)}`}
           alt=""
           style={{
             position: "absolute",
@@ -1867,9 +1869,12 @@ export default function App() {
   const [matchups, setMatchups] = useState([]);
   const [editing, setEditing] = useState(null);
   const [panel, setPanel] = useState("deck");
+  const previewRef = useRef(null);
 
   const parsed = useMemo(() => parseDecklist(deckText), [deckText]);
   const theme = useMemo(() => deriveTheme(parsed.runes), [parsed.runes]);
+  const legendCard = parsed.legend[0];
+  const bgLegend = legendCard ? lookupCard(legendCard.name, "Legend") : null;
 
   const saveMatchup = (d) => {
     if (editing === "new") setMatchups((m) => [...m, d]);
@@ -1877,12 +1882,32 @@ export default function App() {
     setEditing(null);
   };
 
+  const savePreviewAsPng = async () => {
+    if (!previewRef.current) return;
+
+    try {
+      const dataUrl = await toPng(previewRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#0a0a0a",
+      });
+
+      const link = document.createElement("a");
+      link.download = `${(deckName || "riftbound-guide").replace(/[^a-z0-9-_]/gi, "_").toLowerCase()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to save PNG:", err);
+      alert("Could not save PNG.");
+    }
+  };
+
   const statusColor = error ? "#ff8888" : !ready ? "#ffd97b" : "#6effa8";
   const statusBg = error ? "rgba(220,60,60,0.15)" : !ready ? "rgba(255,200,80,0.1)" : "rgba(60,200,120,0.1)";
   const statusText = error ? "⚠ run: node server.js" : !ready ? "⏳ Loading cards..." : `✓ ${cardCount} keys · ${legendCount} legends`;
 
   return (
-    <div style={{ minHeight: "100vh", background: theme.bg, color: "#fff", fontFamily: "'Cinzel',serif" }}>
+    <div style={{ minHeight:"100vh",  position: "relative", overflow: "hidden", background: theme.backgroundGradient || theme.bg, color:"#fff", fontFamily:"'Cinzel',serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
         *{box-sizing:border-box}
@@ -1894,6 +1919,26 @@ export default function App() {
         ::-webkit-scrollbar-thumb{background:${theme.scrollThumb};border-radius:3px}
         @keyframes spin{to{transform:rotate(360deg)}}
       `}</style>
+
+      {bgLegend?.imageUrl && (
+        <img
+          src={`${PROXY_BASE}/api/image?url=${encodeURIComponent(bgLegend.imageUrl)}`}
+          alt=""
+          style={{
+            position: "fixed",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "top center",
+            opacity: 0.08,
+            filter: "blur(4px) saturate(1.3)",
+            transform: "scale(1.1)",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
+      )}
 
       <div
         style={{
@@ -1984,7 +2029,7 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "14px 16px" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "14px 16px", position: "relative", zIndex: 1 }}>
         {tab === "build" && (
           <div style={{ display: "grid", gridTemplateColumns: "305px 1fr", gap: 16 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -2155,22 +2200,43 @@ export default function App() {
 
         {tab === "preview" && (
           <div>
-            <div
-              style={{
-                marginBottom: 12,
-                padding: "7px 13px",
-                background: theme.glow,
-                border: `1px solid ${theme.border}`,
-                borderRadius: 7,
-                fontSize: 10,
-                color: theme.accent,
-                display: "inline-block",
-              }}
-            >
-              💡 <strong style={{ color: "#fff" }}>Ctrl/Cmd+P → Save as PDF</strong> to export
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  padding: "7px 13px",
+                  background: theme.glow,
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 7,
+                  fontSize: 10,
+                  color: theme.accent,
+                  display: "inline-block",
+                }}
+              >
+                <strong style={{ color: "#fff" }}>Ctrl + P to Save as PDF</strong>
+              </div>
+
+              <button
+                onClick={savePreviewAsPng}
+                style={{
+                  ...BS,
+                  background: theme.gradient,
+                  border: `1px solid ${theme.borderBright}`,
+                }}
+              >
+                Save as PNG
+              </button>
             </div>
+
             <div style={{ overflowX: "auto", paddingBottom: 20 }}>
-              <GuidePreview deckName={deckName} author={author} matchups={matchups} parsed={parsed} theme={theme} />
+              <div ref={previewRef} style={{ width: "fit-content" }}>
+                <GuidePreview
+                  deckName={deckName}
+                  author={author}
+                  matchups={matchups}
+                  parsed={parsed}
+                  theme={theme}
+                />
+              </div>
             </div>
           </div>
         )}
