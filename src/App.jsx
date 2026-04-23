@@ -1820,47 +1820,49 @@ function Box({ title, children, theme }) {
 
 // ── SAMPLE ─────────────────────────────────────────────────────────────────
 const SAMPLE = `Legend:
-1 Draven, Glorious Executioner
+1 Irelia, Blade Dancer
 Champion:
-1 Draven, Vanquisher
+1 Irelia, Fervent
 MainDeck:
-3 Scrapheap
-3 Stacked Deck
-3 Traveling Merchant
-3 Rhasa the Sunderer
-3 Seal of Discord
-3 Battering Ram
-3 Called Shot
-3 Treasure Hunter
-2 Fight or Flight
-2 Rebuke
-2 Overzealous Fan
-1 Falling Star
-1 Bushwhack
-1 Last Rites
-3 Ezreal, Prodigy
-2 Fizz, Trickster
-1 Vi, Destructive
+1 Irelia, Fervent
+3 Defy
+2 Charm
+3 En Garde
+3 Defiant Dance
+3 Lonely Poro
+3 Tideturner
+1 The Syren
+3 Guardian Angel
+1 Zhonya's Hourglass
+3 Discipline
+2 Flash
+2 Ride the Wind
+1 Hard Bargain
+2 Not So Fast
+2 Desert's Call
+2 Boots of Swiftness
+3 Stellacorn Herder
 Battlefields:
 1 Targon's Peak
-1 Zaun Warrens
-1 Minefield
+1 Sunken Temple
+1 Treasure Hoard
 Runes:
-8 Chaos Rune
-4 Fury Rune
+6 Chaos Rune
+6 Calm Rune
 Sideboard:
-2 Brynhir Thundersong
-2 Hard Bargain
-2 Switcheroo
-1 Thermo Beam
-1 Falling Star`;
+2 Adaptatron
+2 Vex, Cheerless
+1 Rebuke
+1 Hard Bargain
+1 Zhonya's Hourglass
+1 Charm`;
 
 // ── MAIN APP ───────────────────────────────────────────────────────────────
 export default function App() {
   const { ready, error, cardCount, legendCount } = useCardStore();
   const [tab, setTab] = useState("build");
-  const [deckName, setDeckName] = useState("Nick's Draven");
-  const [author, setAuthor] = useState("Nick");
+  const [deckName, setDeckName] = useState("Kuvi's Irelia");
+  const [author, setAuthor] = useState("Kuvi");
   const [deckText, setDeckText] = useState(SAMPLE);
   const [matchups, setMatchups] = useState([]);
   const [editing, setEditing] = useState(null);
